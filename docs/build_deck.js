@@ -55,7 +55,7 @@ function bullets(slide, items, x, y, w, h, size = 12, color = INK) {
   })
   card(s, 0.5, 4.4, 9, 0.75, { fill: PANEL, line: '243055' })
   s.addText([
-    { text: 'Team name: ', options: { bold: true, color: CYAN } }, { text: '<TEAM NAME>      ', options: { color: WHITE } },
+    { text: 'Team name: ', options: { bold: true, color: CYAN } }, { text: 'FireOrbit      ', options: { color: WHITE } },
     { text: 'Team leader: ', options: { bold: true, color: CYAN } }, { text: '<NAME>      ', options: { color: WHITE } },
     { text: 'Institute: ', options: { bold: true, color: CYAN } }, { text: '<COLLEGE>', options: { color: WHITE } },
   ], { x: 0.7, y: 4.4, w: 8.6, h: 0.75, fontFace: FONT, fontSize: 13, valign: 'middle', margin: 0, isTextBox: true })

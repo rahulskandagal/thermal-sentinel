@@ -60,7 +60,7 @@ const fmt = (n) => n.toLocaleString('en-IN')
   label(s, 'NASA FIRMS  ×  OpenStreetMap  ×  Satellite imagery  →  a GIS system that tells you what is burning, and whether it should be.', 0.5, 2.95, 9, 0.5, { size: 14, color: 'C9D1EC', italic: true })
   card(s, 0.5, 4.2, 9, 0.95, { fill: PANEL, line: '243055' })
   s.addText([
-    { text: 'Team: ', options: { bold: true, color: CYAN } }, { text: '<TEAM NAME>      ', options: { color: WHITE } },
+    { text: 'Team: ', options: { bold: true, color: CYAN } }, { text: 'FireOrbit      ', options: { color: WHITE } },
     { text: 'Members: ', options: { bold: true, color: CYAN } }, { text: '<NAMES>      ', options: { color: WHITE } },
     { text: 'Institute: ', options: { bold: true, color: CYAN } }, { text: '<COLLEGE>', options: { color: WHITE } },
   ], { x: 0.7, y: 4.2, w: 8.6, h: 0.95, fontFace: FONT, fontSize: 13, valign: 'middle', margin: 0, isTextBox: true })

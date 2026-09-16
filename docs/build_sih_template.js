@@ -1,6 +1,6 @@
 // SIH 2026 Idea PPT in the OFFICIAL template format (headings & pointers unchanged).
 //   node build_sih_template.js            → SIH26162_ThermalSentinel_Idea_6slides.pptx (portal version, ≤ 6 slides)
-//   node build_sih_template.js extended   → SIH26162_ThermalSentinel_Idea_extended.pptx (9 slides, for presenting)
+//   node build_sih_template.js extended   → SIH26162_ThermalSentinel_Idea_extended.pptx (for presenting)
 const pptxgen = require('pptxgenjs')
 const fs = require('fs')
 const path = require('path')
@@ -13,7 +13,7 @@ const img = (f) => 'image/png;base64,' + fs.readFileSync(path.join(__dirname, f)
 const INK = '1F2937', MUTED = '6B7280', LINE = 'D1D5DB', SOFT = 'F3F4F6', WHITE = 'FFFFFF'
 const ORANGE = 'E8590C', BLUE = '1D4ED8', GREEN = '15803D', RED = 'B91C1C', PURPLE = '6D28D9', YELLOW = 'B45309', NAVY = '0F172A'
 const FONT = 'Calibri', HEAD = 'Calibri'
-const TEAM = '<TEAM NAME>'
+const TEAM = 'FireOrbit'
 
 const pres = new pptxgen()
 pres.layout = 'LAYOUT_16x9'
@@ -122,6 +122,43 @@ const fmt = (v) => v.toLocaleString('en-IN')
     ['Explains every decision', N, N, Y]]
     .map((r, i) => r.map((c) => (typeof c === 'string' ? { text: c, options: { fill: { color: i % 2 ? SOFT : WHITE } } } : { text: c.text, options: { ...c.options, fill: c.options.fill || { color: i % 2 ? SOFT : WHITE } } })))
   s.addTable(cmp, { x: 3.8, y: 3.5, w: 5.9, colW: [2.6, 1.1, 1.1, 1.1], fontFace: FONT, fontSize: 8.5, color: INK, border: { type: 'solid', color: LINE, pt: 0.5 }, rowH: 0.235, margin: 0.03 })
+}
+
+// ================================================================== (extended) COMPARISON
+if (EXTENDED) {
+  const s = pres.addSlide()
+  frame(s, 'COMPARISON WITH EXISTING SOLUTIONS')
+  const H = (t) => ({ text: t, options: { bold: true, color: WHITE, fill: { color: NAVY }, align: 'center', fontSize: 8.5, valign: 'middle' } })
+  const Y = () => ({ text: '✔', options: { color: GREEN, bold: true, align: 'center' } })
+  const N = () => ({ text: '✖', options: { color: RED, bold: true, align: 'center' } })
+  const P = (t) => ({ text: t || '◐', options: { color: YELLOW, bold: !t, align: 'center', fontSize: t ? 7.5 : 8.5 } })
+  const body = [
+    ['Primary purpose', P('hotspot map'), P('forest / land fires'), P('wildfire danger & burnt area'), P('flare & industrial catalogue'), P('industrial fire intelligence')],
+    ['Detects thermal anomalies', Y(), Y(), Y(), Y(), Y()],
+    ['Classifies WHAT is burning (6 classes)', N(), N(), N(), P('flares only'), Y()],
+    ['Separates industrial fire from wildfire / crop burn', N(), N(), N(), P(), Y()],
+    ['Registry of persistent sources with history', N(), N(), N(), P('annual, global'), Y()],
+    ['Incident alert vs source\'s own baseline', N(), N(), N(), N(), Y()],
+    ['Uses OSM infrastructure + land-cover context', N(), P('land cover'), P('land cover'), N(), Y()],
+    ['Explains every decision (reasons)', N(), N(), N(), N(), Y()],
+    ['Near-real-time (≤ 3 h latency)', Y(), Y(), P('daily'), N(), Y()],
+    ['India-specific priors (crop-residue seasons, kiln belts)', N(), N(), N(), N(), Y()],
+    ['Open GeoJSON API / GIS export', P(), P(), P(), P('CSV'), Y()],
+    ['Free & open data / self-hostable', Y(), Y(), Y(), Y(), Y()],
+  ]
+  const rows = [[{ text: 'Capability', options: { bold: true, color: WHITE, fill: { color: NAVY }, fontSize: 8.5, valign: 'middle' } },
+    H('NASA FIRMS map'), H('Global Forest Watch Fires'), H('Copernicus EFFIS / GWIS'), H('VIIRS Nightfire (VNF) / research'), H('ThermalSentinel (FireOrbit)')]]
+  body.forEach((r, i) => {
+    const bg = { color: i % 2 ? SOFT : WHITE }
+    rows.push(r.map((c, j) => typeof c === 'string' ? { text: c, options: { fill: bg } } : { text: c.text, options: { ...c.options, fill: j === 5 ? { color: 'ECFDF5' } : bg } }))
+  })
+  s.addTable(rows, { x: 0.3, y: 0.75, w: 9.4, colW: [3.0, 1.15, 1.3, 1.35, 1.35, 1.25], fontFace: FONT, fontSize: 8.5, color: INK, border: { type: 'solid', color: LINE, pt: 0.5 }, rowH: 0.27, margin: 0.03 })
+  box(s, 0.3, 4.35, 4.6, 0.85, { fill: SOFT, line: SOFT })
+  txt(s, 'Versus published research', 0.42, 4.4, 4.4, 0.22, { size: 9.5, bold: true, color: ORANGE })
+  txt(s, 'Elvidge et al. (VIIRS Nightfire) catalogue flares globally; Liu et al. (2018) find industrial heat sources from Nightfire time-series. Both are offline, global, single-class studies. We add OSM context, six-class discrimination, per-source baselines with operational alerts, and a live GIS — for India.', 0.42, 4.62, 4.4, 0.58, { size: 8, color: INK })
+  box(s, 5.1, 4.35, 4.6, 0.85, { fill: 'ECFDF5', line: 'ECFDF5' })
+  txt(s, 'Bottom line', 5.22, 4.4, 4.4, 0.22, { size: 9.5, bold: true, color: GREEN })
+  txt(s, 'Existing tools answer "where is it hot?". ThermalSentinel answers "what is it, is it normal, and should someone respond?" — the gap NTRO\'s problem statement describes.', 5.22, 4.62, 4.4, 0.58, { size: 8, color: INK })
 }
 
 // ================================================================== 3. TECHNICAL APPROACH
