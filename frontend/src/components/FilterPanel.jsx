@@ -50,7 +50,7 @@ export default function FilterPanel({ filters, setFilters, counts, stats }) {
 
       <h3>Export (GIS)</h3>
       <div className="export-row">
-        <a className="btn" href={api.exportUrl('hotspots', { labels: [...filters.labels].join(',') })} download>Hotspots .geojson</a>
+        <a className="btn" href={api.exportUrl('hotspots', { labels: [...filters.labels].join(',') })} download>{api.isStatic ? 'Hotspots .json' : 'Hotspots .geojson'}</a>
         <a className="btn" href={api.exportUrl('sources')} download>Persistent sources .geojson</a>
       </div>
       <p className="hint">GeoJSON loads directly into QGIS / ArcGIS / Google Earth. API docs at <code>/docs</code>.</p>

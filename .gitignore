@@ -18,3 +18,4 @@ frontend/*.log
 docs/slides2/
 docs/*.pdf
 ~$*
+frontend/preview.log

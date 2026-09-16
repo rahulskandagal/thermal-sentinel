@@ -1,4 +1,8 @@
+import { staticApi } from './staticApi.js'
+
 const BASE = import.meta.env.VITE_API_BASE || ''
+// VITE_STATIC=1 (GitHub Pages build) → serve everything from pre-exported JSON, no backend.
+export const IS_STATIC = import.meta.env.VITE_STATIC === '1'
 
 async function get(path, params = {}) {
   const qs = Object.entries(params)
@@ -22,7 +26,7 @@ async function get(path, params = {}) {
   return r.json()
 }
 
-export const api = {
+const liveApi = {
   status: () => get('/api/status'),
   stats: () => get('/api/stats'),
   model: () => get('/api/model'),
@@ -43,6 +47,8 @@ export const api = {
     return `${BASE}/api/export/${kind}.geojson${qs ? `?${qs}` : ''}`
   },
 }
+
+export const api = IS_STATIC ? staticApi : liveApi
 
 export const LABELS = {
   INDUSTRIAL_FIRE: { name: 'Industrial fire / process heat', color: '#ff7a1a', short: 'Industrial' },

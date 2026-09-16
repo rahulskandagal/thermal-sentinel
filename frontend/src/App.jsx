@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, LABEL_KEYS } from './api.js'
+import { api, IS_STATIC, LABEL_KEYS } from './api.js'
 import MapView from './components/MapView.jsx'
 import FilterPanel from './components/FilterPanel.jsx'
 import StatsPanel from './components/StatsPanel.jsx'
@@ -152,15 +152,22 @@ export default function App() {
           {job?.running && <span className="pill pill-busy">● {job.status}…</span>}
           {!job?.running && mode && (
             <span className={`pill ${mode === 'demo' ? 'pill-demo' : 'pill-live'}`}>
-              {mode === 'demo' ? 'DEMO ARCHIVE · Mar–May 2025' : `LIVE FIRMS · last ${status.last_run.days} d`}
+              {mode === 'demo' ? `${IS_STATIC ? 'STATIC ' : ''}DEMO ARCHIVE · Mar–May 2025` : `LIVE FIRMS · last ${status.last_run.days} d`}
             </span>
           )}
-          {status && (
+          {status && !IS_STATIC && (
             <span className="pill pill-muted" title="Set FIRMS_MAP_KEY in backend/.env to enable live ingestion">
               FIRMS key: {status.firms_key_configured ? 'configured' : 'not set'}
             </span>
           )}
-          <button className="btn btn-primary" onClick={() => setShowIngest(true)} disabled={job?.running}>Run pipeline</button>
+          {IS_STATIC && (
+            <a className="pill pill-muted" href="https://github.com/rahulskandagal/thermal-sentinel" target="_blank" rel="noreferrer"
+              style={{ textDecoration: 'none' }} title="Static demo hosted on GitHub Pages — clone the repo to run the full pipeline with live NASA FIRMS data">
+              ⌥ GitHub · run locally for live FIRMS
+            </a>
+          )}
+          <button className="btn btn-primary" onClick={() => setShowIngest(true)} disabled={job?.running || IS_STATIC}
+            title={IS_STATIC ? 'Needs the Python backend — clone the repo to run live ingestion' : undefined}>Run pipeline</button>
         </div>
       </header>
 
