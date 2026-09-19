@@ -91,37 +91,64 @@ const fmt = (v) => v.toLocaleString('en-IN')
 // ================================================================== 2. IDEA TITLE / PROPOSED SOLUTION (template p2)
 {
   const s = pres.addSlide()
-  chrome(s, 'ThermalSentinel — AI Classification of Industrial Fires & Persistent Thermal Sources', 15)
+  chrome(s, 'ThermalSentinel — Know WHAT is burning, and whether it should be', 15)
   diamond(s, 'Proposed Solution (Describe your Idea/Solution/Prototype)', 0.3, 0.98, 9.4)
 
-  // Detailed explanation
-  pointer(s, 'Detailed explanation of the proposed solution', 0.3, 1.32, 5.9, BLUE, 10.5)
-  bl(s, ['Ingest VIIRS / MODIS hotspots from the NASA FIRMS API (near-real-time + archive), normalise both sensors to one schema.',
-    'Cluster detections into thermal SOURCES (haversine DBSCAN, 750 m) and track each over 90 days → active days, night fraction, FRP baseline, persistence score.',
-    'Add context from OpenStreetMap: nearest refinery / steel / power plant / gas flare / kiln / mine and land cover (cropland, forest, industrial).',
-    'Hybrid classifier — explainable rules + gradient-boosted trees — labels every detection: Industrial fire · Gas flare · Mining / coal-seam fire · Agricultural burn · Wildfire · Other, with confidence and reasons.',
-    'FRP-anomaly detector: a known source burning ≥ 2.5× its own baseline → incident alert (a real fire, not routine heat).',
-    'Stored in a spatial DB, served as GeoJSON to a Leaflet GIS dashboard; export to QGIS / ArcGIS.'], 0.45, 1.6, 5.75, 2.25, 8.5, 1.5)
+  // ---- left: detailed explanation as a numbered pipeline
+  pointer(s, 'Detailed explanation of the proposed solution', 0.3, 1.3, 5.9, BLUE, 10.5)
+  const steps = [
+    ['Ingest', 'NASA FIRMS VIIRS 375 m + MODIS hotspots (NRT ≤ 3 h + archive), both sensors normalised to one schema.', ORANGE],
+    ['Track', 'DBSCAN (750 m) groups pixel-jittered detections into thermal SOURCES; 90-day history → active days, night %, FRP baseline μ/σ, persistence score.', BLUE],
+    ['Contextualise', 'OpenStreetMap: nearest refinery / steel / power / flare / kiln / mine (type + distance) and land cover (cropland, forest, industrial).', GREEN],
+    ['Classify', 'Hybrid AI = explainable rule engine + gradient-boosted trees on 34 features → 6 classes with confidence and plain-language reasons.', PURPLE],
+    ['Alert', 'Baseline-relative anomaly: FRP ≥ 2.5 μ and z ≥ 3 at a known source → incident candidate. Routine heat stays silent.', RED],
+    ['Serve', 'Spatial DB → GeoJSON REST API → Leaflet GIS dashboard; QGIS / ArcGIS / Bhuvan-ready export.', DARK],
+  ]
+  steps.forEach(([t, d, c], i) => {
+    const y = 1.58 + i * 0.36
+    s.addShape(pres.shapes.OVAL, { x: 0.4, y: y + 0.03, w: 0.26, h: 0.26, fill: { color: c }, line: { color: c, width: 0 } })
+    txt(s, String(i + 1), 0.4, y + 0.03, 0.26, 0.26, { size: 8, bold: true, color: WHITE, align: 'center', valign: 'middle' })
+    s.addText([{ text: t + ':  ', options: { bold: true, color: c } }, { text: d, options: { color: INK } }],
+      { x: 0.75, y, w: 5.45, h: 0.38, fontFace: SANS, fontSize: 8, margin: 0, valign: 'top', isTextBox: true })
+  })
+  // worked example
+  box(s, 0.3, 3.76, 5.9, 0.56, { fill: 'FFF7ED', line: 'FDBA74' })
+  s.addText([
+    { text: 'One detection, end-to-end:  ', options: { bold: true, color: ORANGE } },
+    { text: 'FIRMS pixel 22.352° N 70.049° E, FRP 207 MW, 21 Apr 08:06 UTC  →  ', options: { color: INK } },
+    { text: 'Industrial fire · Jamnagar Refinery (30 m from OSM polygon) · persistent 86/90 days · 10× its 19 MW baseline · ⚠ incident candidate · confidence 0.97 · verify: Sentinel-2 SWIR link', options: { bold: true, color: DARK } },
+  ], { x: 0.4, y: 3.76, w: 5.7, h: 0.56, fontFace: SANS, fontSize: 7.2, valign: 'middle', margin: 0, isTextBox: true })
 
-  // How it addresses
-  pointer(s, 'How it addresses the problem', 0.3, 3.88, 5.9, GREEN, 10.5)
-  bl(s, ['Segregates industrial fires from forest fires, crop burning, flares and mine fires — exactly the PS requirement.',
-    'Only abnormal industrial heat raises an alert → 99 % fewer hotspots for a control room to triage.',
-    'Every result is a map overlay + stored record → the GIS storage / visualisation requirement.'], 0.45, 4.15, 5.75, 1.1, 8.5, 1.5)
+  // PS requirement → delivered
+  pointer(s, 'How it addresses the problem', 0.3, 4.36, 5.9, GREEN, 10.5)
+  const req = [['PS asks: segregate industrial fires from forest & natural fires', '→ 6-class AI: industrial · wildfire · crop burn · flare · mine'],
+    ['PS asks: GIS storage + map overlay', '→ spatial DB, GeoJSON API, dashboard, QGIS export (live now)'],
+    ['Disaster management needs: act only on real incidents', '→ 138 of 22,179 detections flagged (0.6 %) — 99 % less to triage']]
+  req.forEach(([a, b], i) => {
+    s.addText([{ text: a + ' ', options: { color: INK } }, { text: b, options: { bold: true, color: GREEN } }],
+      { x: 0.45, y: 4.64 + i * 0.2, w: 5.75, h: 0.2, fontFace: SANS, fontSize: 7, margin: 0, isTextBox: true })
+  })
 
-  // Innovation + comparison (right column)
-  pointer(s, 'Innovation and uniqueness of the solution', 6.35, 1.32, 3.4, PURPLE, 10.5)
-  bl(s, ['Fuses temporal persistence + OSM infrastructure + physical signature in ONE explainable classifier.',
-    'Baseline-relative alerts tell "refinery operating" from "refinery on fire".',
-    'Finds UNREGISTERED sources: persistent heat where no facility is mapped.',
-    'Zero data cost; offline archive or live with one API key; working prototype online.'], 6.5, 1.6, 3.25, 1.75, 8.5, 1.5)
-  const H = (t) => ({ text: t, options: { bold: true, color: WHITE, fill: { color: DARK }, align: 'center', fontSize: 7.5 } })
+  // ---- right: innovation + comparison
+  pointer(s, 'Innovation and uniqueness of the solution', 6.35, 1.3, 3.4, PURPLE, 10.5)
+  const nov = [['Source-level persistence fingerprint', 'classify the SOURCE over 90 days, not a single pixel'],
+    ['Baseline-relative anomaly alerts', 'each site compared with its own normal → "operating" vs "on fire"'],
+    ['OSM infrastructure fusion', 'facility type + distance + land cover as features'],
+    ['Explainable hybrid AI', 'every label ships with human-readable reasons — auditable'],
+    ['Unregistered-source discovery', 'persistent heat with no mapped facility is itself a finding'],
+    ['Open & sovereign', '₹0 data, self-hostable, prototype live on GitHub Pages']]
+  nov.forEach(([t, d], i) => {
+    s.addText([{ text: '✦ ' + t + ' — ', options: { bold: true, color: PURPLE } }, { text: d, options: { color: INK } }],
+      { x: 6.4, y: 1.6 + i * 0.3, w: 3.35, h: 0.3, fontFace: SANS, fontSize: 7.5, margin: 0, valign: 'top', isTextBox: true })
+  })
+  const H = (t) => ({ text: t, options: { bold: true, color: WHITE, fill: { color: DARK }, align: 'center', fontSize: 7 } })
   const Y = () => ({ text: '✔', options: { color: GREEN, bold: true, align: 'center' } }), N = () => ({ text: '✖', options: { color: RED, bold: true, align: 'center' } }), P = () => ({ text: '◐', options: { color: YELLOW, bold: true, align: 'center' } })
-  const cmp = [[{ text: 'Comparison', options: { bold: true, color: WHITE, fill: { color: DARK }, fontSize: 7.5 } }, H('FIRMS'), H('Fire dashboards'), H('Ours')],
-    ['Hotspots on a map', Y(), Y(), Y()], ['Tells WHAT is burning', N(), N(), Y()], ['Industrial vs wildfire vs crop', N(), P(), Y()],
-    ['Persistent-source registry', N(), N(), Y()], ['Alert vs own baseline', N(), N(), Y()], ['Explains decisions', N(), N(), Y()]]
+  const cmp = [[{ text: 'vs existing tools', options: { bold: true, color: WHITE, fill: { color: DARK }, fontSize: 7 } }, H('FIRMS map'), H('GFW / EFFIS'), H('Ours')],
+    ['Tells WHAT is burning', N(), N(), Y()], ['Industrial vs wildfire vs crop', N(), P(), Y()], ['Persistent-source registry', N(), N(), Y()],
+    ['Alert vs own baseline', N(), N(), Y()], ['OSM context + explanations', N(), N(), Y()], ['India-specific priors', N(), N(), Y()]]
     .map((r, i) => r.map((c) => (typeof c === 'string' ? { text: c, options: { fill: { color: i % 2 ? SOFT : WHITE } } } : { text: c.text, options: { ...c.options, fill: c.options.fill || { color: i % 2 ? SOFT : WHITE } } })))
-  s.addTable(cmp, { x: 6.35, y: 3.42, w: 3.4, colW: [1.55, 0.55, 0.75, 0.55], fontFace: SANS, fontSize: 7.5, color: INK, border: { type: 'solid', color: LINE, pt: 0.5 }, rowH: 0.245, margin: 0.02 })
+  s.addTable(cmp, { x: 6.35, y: 3.45, w: 3.4, colW: [1.6, 0.6, 0.65, 0.55], fontFace: SANS, fontSize: 7, color: INK, border: { type: 'solid', color: LINE, pt: 0.5 }, rowH: 0.225, margin: 0.02 })
+  txt(s, 'GFW = Global Forest Watch Fires · EFFIS = Copernicus fire information system', 6.35, 5.05, 3.4, 0.18, { size: 6, color: MUTED, italic: true })
 }
 
 // ================================================================== (extended) COMPARISON
@@ -166,38 +193,57 @@ if (EXTENDED) {
   const s = pres.addSlide()
   chrome(s, 'TECHNICAL APPROACH')
   pointer(s, 'Technologies to be used (e.g. programming languages, frameworks, hardware)', 0.3, 0.98, 9.4, INK, 10.5)
-  const tech = [['Data', 'NASA FIRMS Area API (VIIRS 375 m, MODIS 1 km), OpenStreetMap Overpass, Copernicus Sentinel-2 / NASA Worldview'],
-    ['Backend / ML', 'Python 3, FastAPI, pandas, NumPy, scikit-learn (DBSCAN, HistGradientBoosting), shapely'],
-    ['Storage / GIS', 'SQLite → PostGIS, GeoJSON API, QGIS / ArcGIS export'],
-    ['Frontend / hosting', 'React 18, Vite, Leaflet (canvas renderer); any Linux VM or GitHub Pages for the static demo']]
+  const tech = [['Data', 'NASA FIRMS Area API (VIIRS SNPP / NOAA-20 / NOAA-21 375 m, MODIS 1 km) · OpenStreetMap Overpass · Copernicus Sentinel-2 SWIR · NASA Worldview'],
+    ['AI / ML', 'Python 3, scikit-learn — DBSCAN (haversine), HistGradientBoosting, group-aware validation; rule engine; NumPy / pandas / shapely (STRtree point-in-polygon)'],
+    ['Backend / GIS', 'FastAPI REST (GeoJSON), SQLite → PostGIS; OGC-standard outputs for QGIS / ArcGIS / ISRO Bhuvan; Docker-ready'],
+    ['Frontend / hosting', 'React 18 + Vite, Leaflet canvas renderer (40 k+ points); runs on a laptop, one Linux VM, NIC cloud or air-gapped server; static demo on GitHub Pages']]
   tech.forEach(([k, v], i) => {
     s.addText([{ text: k + ': ', options: { bold: true, color: ORANGE } }, { text: v, options: { color: INK } }],
-      { x: 0.55, y: 1.27 + i * 0.21, w: 9.1, h: 0.21, fontFace: SANS, fontSize: 8.5, margin: 0, valign: 'top', isTextBox: true })
+      { x: 0.55, y: 1.27 + i * 0.21, w: 9.1, h: 0.21, fontFace: SANS, fontSize: 8, margin: 0, valign: 'top', isTextBox: true })
   })
 
-  pointer(s, 'Methodology and process for implementation (Flow Charts/Images/ working prototype)', 0.3, 2.15, 9.4, INK, 10.5)
-  const flow = [['1  Ingest', 'FIRMS hotspots,\n10-day chunks,\nnormalise, de-dup', ORANGE], ['2  Cluster', 'Haversine DBSCAN\n750 m → thermal\nsources', BLUE],
-    ['3  Persistence', 'active days, span,\nnight %, FRP mean\n/ CV / z-score', PURPLE], ['4  OSM context', 'nearest facility\ntype + distance,\nland cover', GREEN],
-    ['5  Classify', 'rules + GBM vote\n→ 6 classes,\nconfidence, reasons', RED], ['6  Serve', 'SQLite → GeoJSON\nAPI → Leaflet GIS\ndashboard, export', DARK]]
+  pointer(s, 'Methodology and process for implementation (Flow Charts/Images/ working prototype)', 0.3, 2.13, 9.4, INK, 10.5)
+  // input sources strip
+  const inputs = [['NASA FIRMS', 'thermal anomalies'], ['OpenStreetMap', 'facilities + land use'], ['Sentinel-2 · Worldview', 'visual verification']]
+  inputs.forEach(([t, d], i) => {
+    box(s, 0.3 + i * 1.05, 2.42, 0.98, 0.42, { fill: SOFT, line: SOFT })
+    txt(s, t, 0.33 + i * 1.05, 2.44, 0.92, 0.2, { size: 6.5, bold: true, color: DARK, align: 'center' })
+    txt(s, d, 0.33 + i * 1.05, 2.62, 0.92, 0.2, { size: 6, color: MUTED, align: 'center' })
+  })
+  arrow(s, 3.45, 2.63, 0.2)
+  const flow = [['Ingest', 'normalise VIIRS +\nMODIS, de-dup passes', ORANGE], ['Cluster', 'DBSCAN 750 m →\nthermal sources', BLUE],
+    ['Persistence', 'days, span, night %,\nFRP μ / σ / z', PURPLE], ['Context', 'nearest facility,\nland cover', GREEN], ['Classify', 'rules + GBM →\nclass, conf., reasons', RED]]
   flow.forEach(([t, d, c], i) => {
-    const x = 0.3 + i * 1.6
-    box(s, x, 2.47, 1.45, 0.86, { line: c })
-    s.addShape(pres.shapes.RECTANGLE, { x, y: 2.47, w: 1.45, h: 0.25, fill: { color: c }, line: { color: c, width: 0 } })
-    txt(s, t, x + 0.05, 2.47, 1.35, 0.25, { size: 8.5, bold: true, color: WHITE, valign: 'middle' })
-    txt(s, d, x + 0.07, 2.75, 1.33, 0.56, { size: 7, color: INK })
-    if (i < 5) arrow(s, x + 1.45, 2.9, 0.15)
+    const x = 3.7 + i * 1.22
+    box(s, x, 2.38, 1.1, 0.5, { line: c })
+    s.addShape(pres.shapes.RECTANGLE, { x, y: 2.38, w: 1.1, h: 0.17, fill: { color: c }, line: { color: c, width: 0 } })
+    txt(s, `${i + 1}  ${t}`, x + 0.04, 2.38, 1.02, 0.17, { size: 7, bold: true, color: WHITE, valign: 'middle' })
+    txt(s, d, x + 0.05, 2.56, 1.0, 0.32, { size: 5.8, color: INK })
+    if (i < 4) arrow(s, x + 1.1, 2.63, 0.12)
   })
-  s.addShape(pres.shapes.LINE, { x: 7.42, y: 3.33, w: 0, h: 0.15, line: { color: RED, width: 1.5, endArrowType: 'triangle' } })
-  box(s, 6.15, 3.48, 2.55, 0.34, { fill: 'FEF2F2', line: RED })
-  txt(s, '⚠ Anomaly: FRP ≥ 2.5× source baseline & z ≥ 3 → incident alert', 6.22, 3.48, 2.45, 0.34, { size: 7, bold: true, color: RED, valign: 'middle' })
-  txt(s, 'Inputs: NASA FIRMS (thermal anomalies) · OSM (infrastructure & land use) · Sentinel-2 / Worldview (visual verification)', 0.3, 3.4, 5.8, 0.22, { size: 7.5, color: MUTED, italic: true })
+  // outputs row
+  const outs = [['GIS layers', 'classified detections, persistent-source registry, GeoJSON API', BLUE],
+    ['⚠ Incident alerts', 'FRP ≥ 2.5 μ & z ≥ 3 at a known source → webhook / SMS / e-mail', RED],
+    ['Analyst loop', 'reasons shown → confirm / override → labels retrain the model', GREEN]]
+  outs.forEach(([t, d, c], i) => {
+    const x = 0.3 + i * 3.15
+    s.addShape(pres.shapes.LINE, { x: x + 1.5, y: 2.9, w: 0, h: 0.12, line: { color: '9CA3AF', width: 1.2, endArrowType: 'triangle' } })
+    box(s, x, 3.02, 3.05, 0.42, { fill: i === 1 ? 'FEF2F2' : SOFT, line: i === 1 ? RED : SOFT })
+    s.addText([{ text: t + ': ', options: { bold: true, color: c } }, { text: d, options: { color: INK } }], { x: x + 0.08, y: 3.02, w: 2.9, h: 0.42, fontFace: SANS, fontSize: 7, valign: 'middle', margin: 0, isTextBox: true })
+  })
+  // AI core spec
+  box(s, 0.3, 3.52, 9.4, 0.36, { fill: 'EFF6FF', line: 'BFDBFE' })
+  s.addText([{ text: 'AI core:  ', options: { bold: true, color: BLUE } },
+    { text: '34 features (radiometry · persistence · OSM context · land cover · calendar priors: Oct–Nov & Apr–May residue burning)  ·  rules give auditable priors, GBM resolves ambiguous cases, agreement raises confidence  ·  trained/tested with a group-aware split so no source leaks between train and test.', options: { color: INK } }],
+    { x: 0.42, y: 3.52, w: 9.2, h: 0.36, fontFace: SANS, fontSize: 7, valign: 'middle', margin: 0, isTextBox: true })
 
-  txt(s, 'Working prototype (real screenshots)', 0.3, 3.9, 4, 0.22, { size: 9, bold: true, color: INK })
-  s.addImage({ data: img('dashboard.png'), x: 0.3, y: 4.13, w: 2.0, h: 1.12 })
-  s.addImage({ data: img('dashboard_detail.png'), x: 2.4, y: 4.13, w: 4.0, h: 2.25, sizing: { type: 'crop', x: 2.25, y: 0.16, w: 1.45, h: 1.12 } })
-  bl(s, [`${fmt(M.totals[0])} FIRMS detections classified in ~7 s · ${M.n_sources} persistent sources · ${M.totals[2]} incident candidates`,
-    `Hybrid accuracy ${(M.acc * 100).toFixed(1)} % on labelled archive (group-aware split); rules-only ${(M.rules * 100).toFixed(1)} %`,
-    'Live demo: rahulskandagal.github.io/thermal-sentinel  ·  Code: github.com/rahulskandagal/thermal-sentinel'], 4.0, 4.1, 5.7, 1.15, 8, 2)
+  txt(s, 'Working prototype (real screenshots)', 0.3, 3.95, 4, 0.22, { size: 9, bold: true, color: INK })
+  s.addImage({ data: img('dashboard.png'), x: 0.3, y: 4.17, w: 1.95, h: 1.1 })
+  s.addImage({ data: img('dashboard_detail.png'), x: 2.35, y: 4.17, w: 3.9, h: 2.2, sizing: { type: 'crop', x: 2.2, y: 0.16, w: 1.4, h: 1.1 } })
+  bl(s, [`${fmt(M.totals[0])} FIRMS detections classified in ~7 s · ${M.n_sources} persistent sources · ${M.totals[2]} incident candidates (0.6 %)`,
+    `Hybrid accuracy ${(M.acc * 100).toFixed(1)} % vs rules-only ${(M.rules * 100).toFixed(1)} % on the labelled archive (group-aware split)`,
+    'Scales: India ≈ 5–15 k detections / day → seconds of compute; OSM queried only around hotspot cells',
+    'Live demo: rahulskandagal.github.io/thermal-sentinel  ·  Code: github.com/rahulskandagal/thermal-sentinel'], 3.9, 4.15, 5.8, 1.15, 7.5, 1.5)
 }
 
 // ================================================================== (extended) IMPLEMENTATION
@@ -220,69 +266,92 @@ if (EXTENDED) {
   const s = pres.addSlide()
   chrome(s, 'FEASIBILITY AND VIABILITY')
   const cols = [
-    ['Analysis of the feasibility of the idea', GREEN, ['All inputs are free & open: FIRMS MAP_KEY (instant), OSM Overpass, Copernicus Sentinel-2, NASA Worldview.',
-      'Working end-to-end prototype exists: 22 k detections classified in 7 s on a laptop; model trains in seconds.',
-      'Same pipeline switches to live FIRMS with one env variable; Overpass queried only around hotspot cells → India-wide in minutes.',
-      'Lightweight stack (SQLite / FastAPI / React) → one VM, NIC cloud or an air-gapped NTRO server.',
-      'Explainable rules let analysts audit and tune; ML improves as labelled incidents accumulate.',
-      'Static demo already live on GitHub Pages.']],
-    ['Potential challenges and risks', RED, ['Incomplete OSM coverage of Indian industry (small kilns, sponge-iron units).',
-      'Cloud cover & 375 m pixel offsets between passes.',
-      'Few labelled real incidents for supervised ML; synthetic archive is cleaner than reality.',
-      'Overpass rate limits when scaling to national, multi-year archives.',
+    ['Analysis of the feasibility of the idea', GREEN, ['Technical: end-to-end prototype already runs — 22 k detections → classified in 7 s on a laptop; model trains in seconds; deployed static demo online.',
+      'Data: every input is free, open and API-accessible (FIRMS key issued instantly; OSM Overpass; Copernicus). No procurement, no licence.',
+      'Operational: one env variable switches offline archive → live FIRMS; Overpass queried only around hotspot cells → India-wide refresh in minutes.',
+      'Deployment: SQLite / FastAPI / React on one VM, NIC cloud or an air-gapped NTRO server; GeoJSON fits existing GIS (QGIS, ArcGIS, Bhuvan).',
+      'Team & timeline: 4-week pilot plan (live ingest → validation → alerting) is realistic with the current code base.']],
+    ['Potential challenges and risks', RED, ['OSM under-maps Indian industry (small kilns, sponge-iron units) → missed context.',
+      'Cloud cover & 375 m pixel offsets between passes → gaps / jitter.',
+      'Few labelled real incidents; our archive is physically simulated → optimistic accuracy.',
       'False alarms from legitimate process changes (furnace restart, maintenance flaring).',
-      'Sub-pixel sources (small flares) below VIIRS detection threshold.']],
-    ['Strategies for overcoming these challenges', BLUE, ['Persistence signature detects unregistered sources even without an OSM facility; curated facility list merged with OSM; Sentinel-2 chip verification.',
-      '90-day window + 4 passes/day from 3 VIIRS satellites; DBSCAN grouping absorbs pixel jitter.',
-      'Rules as strong prior; validate on documented incidents (news / PESO / CPCB); analyst feedback loop → retrain.',
-      'Around-cell queries + disk cache; self-hosted Overpass or ESA WorldCover raster for scale.',
-      'Baseline-relative thresholds + analyst override; confidence shown on every alert.',
-      'Add VIIRS Nightfire (VNF) for flare temperature; Landsat TIRS for small sources.']],
+      'Sub-pixel sources (small flares) below VIIRS threshold; Overpass rate limits at national, multi-year scale.',
+      'Adoption: agencies need trust in an AI label before acting on it.']],
+    ['Strategies for overcoming these challenges', BLUE, ['Persistence fingerprint flags unregistered sources even with no OSM facility; curated facility list; Sentinel-2 chip verification.',
+      '90-day window, 4 passes/day from 3 VIIRS satellites; DBSCAN absorbs jitter; anomalies require an established baseline.',
+      'Validate on documented incidents (PESO / CPCB / news); analyst confirm-or-override → labels retrain the model.',
+      'Baseline-relative thresholds + confidence on every alert; tunable per site class.',
+      'Add VIIRS Nightfire & Landsat TIRS; self-hosted Overpass or ESA WorldCover raster for scale.',
+      'Explainability first: every decision shows its reasons — auditable, not a black box.']],
   ]
   cols.forEach(([t, c, items], i) => {
     const x = 0.3 + i * 3.15
     pointer(s, t, x, 0.98, 3.05, c, 10)
-    box(s, x, 1.28, 3.05, 3.05)
-    bl(s, items, x + 0.1, 1.36, 2.88, 2.92, 8.5, 2)
+    box(s, x, 1.28, 3.05, 2.72)
+    bl(s, items, x + 0.1, 1.35, 2.88, 2.6, 8, 2)
   })
-  box(s, 0.3, 4.42, 9.4, 0.8, { fill: DARK, line: DARK })
-  txt(s, 'VIABILITY', 0.45, 4.46, 2, 0.2, { size: 8.5, bold: true, color: 'FBBF24' })
-  const via = [['₹ 0', 'data licensing — all open sources'], ['1 VM', 'or air-gapped server; SQLite → PostGIS to scale'], ['~7 s', 'to classify a 90-day national archive'], ['1 env var', 'switches offline archive → live NASA FIRMS'], ['Open', 'GeoJSON / API — plugs into any GIS NTRO runs']]
-  via.forEach(([v, l], i) => {
-    const x = 0.45 + i * 1.86
-    txt(s, v, x, 4.66, 1.8, 0.28, { size: 14, bold: true, color: 'FB923C' })
-    txt(s, l, x, 4.94, 1.75, 0.26, { size: 7, color: 'E5E7EB' })
+  // roadmap
+  box(s, 0.3, 4.1, 9.4, 1.12, { fill: DARK, line: DARK })
+  txt(s, 'ROADMAP & VIABILITY', 0.45, 4.14, 3, 0.2, { size: 8.5, bold: true, color: 'FBBF24' })
+  const phases = [['✔ Done', 'Idea + working prototype', 'pipeline, 6-class AI, alerts, GIS dashboard, public demo', '2BB673'],
+    ['Next 4 weeks', 'Pilot with live FIRMS', 'India-wide ingest, validation against real incidents, analyst loop', 'FB923C'],
+    ['Grand finale', 'Scale & harden', 'PostGIS + tiles, SMS / webhook alerts, Sentinel-2 chip CNN, WorldCover', '38BDF8'],
+    ['Deployment', 'Agency integration', 'Bhuvan / NDEM layers, SDMA control-room pilot, SOP for alerts', 'C4B5FD']]
+  phases.forEach(([w, t, d, c], i) => {
+    const x = 0.45 + i * 2.33
+    s.addShape(pres.shapes.OVAL, { x, y: 4.42, w: 0.16, h: 0.16, fill: { color: c }, line: { color: c, width: 0 } })
+    if (i < 3) s.addShape(pres.shapes.LINE, { x: x + 0.16, y: 4.5, w: 2.17, h: 0, line: { color: '475569', width: 1 } })
+    txt(s, w, x + 0.22, 4.36, 2.0, 0.18, { size: 7, bold: true, color: c })
+    txt(s, t, x, 4.62, 2.2, 0.18, { size: 8, bold: true, color: WHITE })
+    txt(s, d, x, 4.8, 2.2, 0.4, { size: 6.5, color: 'CBD5E1' })
   })
+  txt(s, 'Cost to run: ₹0 data · one VM (≈ ₹3–5 k / month) · open-source stack — sustainable for any state or central agency.', 0.45, 5.06, 9.1, 0.16, { size: 6.5, color: 'FBBF24', italic: true })
 }
 
 // ================================================================== 5. IMPACT AND BENEFITS (template p5)
 {
   const s = pres.addSlide()
   chrome(s, 'IMPACT AND BENEFITS')
-  pointer(s, 'Potential impact on the target audience', 0.3, 0.98, 4.6, BLUE, 10.5)
-  box(s, 0.3, 1.28, 4.6, 1.9)
-  bl(s, ['Disaster management (NDMA / SDMAs / fire services): alerts only on abnormal industrial heat → faster, correctly-targeted response to plant fires & explosions.',
-    'NTRO & security agencies: national registry of persistent thermal sources with activity history; detects undeclared industrial activity; change detection (shutdowns, restarts, surges).',
-    'CPCB / MoEFCC: attribute district fires to stubble burning vs industry; flaring inventories.',
-    'Insurers & industry: verified incident records; compliance evidence.'], 0.4, 1.36, 4.4, 1.78, 8.5, 2)
-  pointer(s, 'Benefits of the solution (social, economic, environmental, etc.)', 5.1, 0.98, 4.6, GREEN, 10.5)
-  box(s, 5.1, 1.28, 4.6, 1.9)
-  bl(s, ['Social: earlier warning for communities near refineries, steel plants, chemical complexes; better use of fire-service capacity.',
-    'Economic: 99 % fewer hotspots to triage; ₹0 data licensing; lower losses through early detection; runs on one VM.',
-    'Environmental: separates agricultural burning from industrial emissions; flaring and coal-fire monitoring for climate reporting.',
-    'Strategic: open, explainable, auditable — deployable on sovereign / air-gapped infrastructure.'], 5.2, 1.36, 4.4, 1.78, 8.5, 2)
+  pointer(s, 'Potential impact on the target audience', 0.3, 0.98, 5.4, BLUE, 10.5)
+  const H = (t) => ({ text: t, options: { bold: true, color: WHITE, fill: { color: DARK }, fontSize: 7.5 } })
+  const rows = [[H('Who'), H('What they get'), H('Measurable outcome')],
+    ['NDMA / SDMAs · fire services', 'Alerts only on abnormal industrial heat, with location, facility name and reasons', '99 % fewer hotspots to triage; response targeted to the right plant, faster'],
+    ['NTRO & security agencies', 'National registry of persistent thermal sources with 90-day activity history', 'Undeclared / unregistered activity surfaced; shutdowns, restarts and surges detected'],
+    ['CPCB / MoEFCC / state boards', 'Fire attribution: stubble burning vs industry vs flaring, per district', 'Evidence-grade inventories for air-quality and emissions action'],
+    ['Industry & insurers', 'Verified incident timeline for any site, with imagery links', 'Faster claims, compliance evidence, third-party monitoring']]
+    .map((r, i) => r.map((c) => typeof c === 'string' ? { text: c, options: { fill: { color: i % 2 ? SOFT : WHITE } } } : c))
+  s.addTable(rows, { x: 0.3, y: 1.28, w: 5.4, colW: [1.35, 2.15, 1.9], fontFace: SANS, fontSize: 7, color: INK, border: { type: 'solid', color: LINE, pt: 0.5 }, rowH: 0.36, margin: 0.03 })
 
-  box(s, 0.3, 3.3, 9.4, 1.92, { fill: DARK, line: DARK })
-  txt(s, 'REPORT — results of the working prototype (90-day labelled archive over real Indian sites)', 0.45, 3.35, 9.1, 0.25, { size: 10, bold: true, color: 'FBBF24' })
-  const tiles = [[fmt(M.totals[0]), 'FIRMS detections classified in ~7 s'], [String(M.n_sources), 'persistent sources registered'], [String(M.totals[2]), 'incident candidates (0.6 % of detections)'],
-    [`${(M.acc * 100).toFixed(1)} %`, 'hybrid accuracy (group-aware test split)'], [`${(M.rules * 100).toFixed(1)} %`, 'rules-only accuracy (explainable baseline)'], ['6', 'classes: industrial, flare, mining, agri, wildfire, other']]
-  tiles.forEach(([v, l], i) => {
-    const x = 0.45 + (i % 3) * 3.05, y = 3.65 + Math.floor(i / 3) * 0.66
-    txt(s, v, x, y, 1.1, 0.42, { size: 18, bold: true, color: 'FB923C', valign: 'middle' })
-    txt(s, l, x + 1.15, y, 1.85, 0.42, { size: 8, color: 'E5E7EB', valign: 'middle' })
+  pointer(s, 'Benefits of the solution (social, economic, environmental, etc.)', 5.9, 0.98, 3.9, GREEN, 8.8)
+  const ben = [['Social', 'Earlier warning for communities around refineries, steel and chemical complexes; fire-service capacity used where it matters.', GREEN],
+    ['Economic', '₹0 data cost; one VM; losses cut by early detection; a sovereign, open alternative to paid geospatial platforms.', ORANGE],
+    ['Environmental', 'Separates agricultural burning from industrial emissions; flaring & coal-fire monitoring feed climate and AQ reporting.', BLUE],
+    ['Strategic', 'Explainable, auditable, air-gap deployable — fits NTRO / NDEM / Bhuvan ecosystems.', PURPLE]]
+  ben.forEach(([t, d, c], i) => {
+    const y = 1.28 + i * 0.5
+    s.addShape(pres.shapes.RECTANGLE, { x: 5.9, y, w: 0.06, h: 0.44, fill: { color: c }, line: { color: c, width: 0 } })
+    s.addText([{ text: t + ': ', options: { bold: true, color: c } }, { text: d, options: { color: INK } }], { x: 6.03, y, w: 3.7, h: 0.44, fontFace: SANS, fontSize: 7.2, valign: 'top', margin: 0, isTextBox: true })
   })
-  txt(s, 'Example alerts: Bhilai Steel 414 MW vs 32 MW baseline · Jamnagar 207 MW vs 19 MW · Tata Steel 101 MW vs 26 MW.  Note: archive is physically simulated & labelled; real-world accuracy will be lower — validating on real incidents is the next-round goal.',
-    0.45, 4.9, 9.1, 0.3, { size: 7, color: 'CBD5E1', italic: true })
+  // SDG badges
+  const sdg = [['SDG 9', 'Industry & infrastructure', 'F36D25'], ['SDG 11', 'Safe, resilient cities', 'F99D26'], ['SDG 13', 'Climate action', '3F7E44'], ['SDG 3', 'Health & well-being', '4C9F38']]
+  sdg.forEach(([k, t, c], i) => {
+    const x = 5.9 + i * 0.97
+    box(s, x, 3.3, 0.92, 0.36, { fill: c, line: c })
+    txt(s, k, x, 3.31, 0.92, 0.17, { size: 7, bold: true, color: WHITE, align: 'center' })
+    txt(s, t, x, 3.47, 0.92, 0.17, { size: 5.2, color: WHITE, align: 'center' })
+  })
+
+  box(s, 0.3, 3.78, 9.4, 1.44, { fill: DARK, line: DARK })
+  txt(s, 'REPORT — what the working prototype already delivers (90-day labelled archive over real Indian industrial sites)', 0.45, 3.82, 9.1, 0.22, { size: 9, bold: true, color: 'FBBF24' })
+  const tiles = [[fmt(M.totals[0]), 'detections classified in ~7 s'], [String(M.n_sources), 'persistent sources registered'], [String(M.totals[2]), 'incident candidates (0.6 %)'],
+    [`${(M.acc * 100).toFixed(1)} %`, 'hybrid accuracy, group-aware split'], [`${(M.rules * 100).toFixed(1)} %`, 'rules-only (explainable baseline)'], ['6', 'classes · 34 features · 3 data sources']]
+  tiles.forEach(([v, l], i) => {
+    const x = 0.45 + (i % 3) * 3.05, y = 4.08 + Math.floor(i / 3) * 0.44
+    txt(s, v, x, y, 1.05, 0.4, { size: 15, bold: true, color: 'FB923C', valign: 'middle' })
+    txt(s, l, x + 1.1, y, 1.9, 0.4, { size: 7.5, color: 'E5E7EB', valign: 'middle' })
+  })
+  txt(s, 'Alerts found: Bhilai Steel 414 MW vs 32 MW baseline · Jamnagar Refinery 207 MW vs 19 MW · Tata Steel 101 MW vs 26 MW.  Honest note: the archive is physically simulated & labelled, so real-world accuracy will be lower — validating on confirmed incidents is the next-round goal.',
+    0.45, 4.95, 9.1, 0.26, { size: 6.5, color: 'CBD5E1', italic: true })
 }
 
 // ================================================================== (extended) REPORT
