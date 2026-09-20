@@ -21,3 +21,4 @@ docs/*.pdf
 frontend/preview.log
 docs/qa_*/
 docs/template_pages/
+docs/ref/
