@@ -72,7 +72,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
 
   callout(s, 0.2, 0.98, 3.05, 1.1, 'Real-world issue:', 'India generates ≈ 4 million tonnes of e-waste a year and over 90 % moves through kabadiwalas and waste-pickers who sit outside the formal EPR chain — ending in open-air cable burning and acid leaching.')
   callout(s, 0.2, 2.16, 3.05, 1.02, 'Why important:', 'Collectors do not know fair prices, authorized recyclers or compliant handover; recyclers cannot source traceable feedstock; India loses lithium, cobalt, neodymium, tantalum, gallium, indium — and workers lose their health.')
-  callout(s, 0.2, 3.26, 3.05, 0.98, 'Solution:', 'A Hindi / Marathi, voice-first, offline-tolerant Android app: photo → instant fair price → nearest authorized recycler → GPS-stamped digital handover → UPI payment → EPR record.')
+  callout(s, 0.2, 3.26, 3.05, 0.98, 'Solution:', 'A Hindi / Marathi, voice-first, offline-capable Android app: photo → instant AI price → audio price board → authorized recycler → GPS-verified handover → cash or UPI, logged in an earnings ledger → EPR record.')
   cloud(s, 0.15, 4.3, 1.75, 0.95, ['App mockups', 'Nagpur pilot plan'])
   T(s, 'Prototype', 2.05, 4.32, 1.2, 0.28, { size: 12, bold: true, color: BLACK })
   s.addShape(pres.shapes.LINE, { x: 1.95, y: 4.62, w: 0.55, h: 0.12, flipV: true, line: { color: BLACK, width: 2, endArrowType: 'triangle' } })
@@ -83,7 +83,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   const tiers = [
     ['CORE INNOVATION', '📷 Snap-to-Value on-device AI + 🧾 tamper-evident GPS handover ledger — fair price and traceability in one tap', '14532D'],
     ['PRIMARY FUNCTIONS', '💰 Price discovery & 30-day trends   |   ♻️ Authorized-recycler matching & pooled pickup', '166534'],
-    ['INCLUSION & TRUST', '🗣️ Hindi / Marathi voice UI · 📴 offline-first · 🪪 collector digital ID · 💳 instant UPI payout · 🛡️ safety training', '15803D'],
+    ['INCLUSION & TRUST', '🗣️ Hindi / Marathi voice UI · 🔊 audio price board · 📴 offline-first · 💵 cash or UPI with OTP receipt · 📒 earnings ledger · 🛡️ safety guidance', '15803D'],
     ['PLATFORM & DATA', '🖥️ Recycler console · 📊 MoM / CPCB dashboard · 🔗 open price dataset & API · 📄 EPR / Form-6 records · 📍 hotspot map', '1E5AA8'],
   ]
   const geo = [[3.4, 0.8], [2.8, 0.72], [2.15, 0.72], [1.5, 0.72]]
@@ -104,7 +104,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   T(s, 'Solution', 8.55, 0.98, 1.2, 0.28, { size: 13, bold: true, color: GREEN, align: 'center' })
   const pairs = [['Collector does not know the fair price', 'Photo → AI category → live ₹/kg band + trend'],
     ['No link to authorized recyclers', 'Matching + pooled pickup in one tap'],
-    ['No proof of formal handover', 'GPS + time + weight + QR trace ID, UPI receipt'],
+    ['No proof of formal handover', 'GPS-verified handover, QR trace ID, cash / UPI receipt'],
     ['Low literacy, weak network', 'Voice-first Hindi / Marathi; works offline']]
   pairs.forEach(([a, b], i) => {
     const y = 1.32 + i * 0.7
@@ -114,8 +114,11 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
     R(s, 8.68, y, 1.1, 0.5, GRNP, { r: 0.1, shadow: true })
     T(s, b, 8.72, y, 1.02, 0.5, { size: 7, bold: true, color: WHITE, align: 'center', valign: 'middle', font: SERIF })
   })
-  s.addImage({ data: DASHK, x: 7.0, y: 4.15, w: 2.78, h: 0.95, sizing: { type: 'crop', x: 0, y: 0, w: 2.78, h: 0.95 } })
-  T(s, 'recycler & MoM console (mockup)', 7.0, 5.1, 2.78, 0.16, { size: 6.5, italic: true, color: MUTED, align: 'right' })
+  R(s, 7.0, 4.12, 2.78, 1.13, 'F0FDF4', { line: '16A34A', lw: 1, r: 0.05 })
+  T(s, '✔ Covers all 12 PS requirements', 7.08, 4.14, 2.65, 0.2, { size: 8, bold: true, color: GREEN })
+  const reqs = ['Photo → AI valuation', 'Price history dataset', 'End-to-end traceability', 'Recycler directory + matching', 'Audio price boards', 'GPS handover records',
+    'Earnings ledger / history', 'Safety guidance built in', 'Hindi & Marathi', 'Offline-first', 'Entry-level Android', 'Cash transactions']
+  reqs.forEach((t, i) => T(s, '✔ ' + t, 7.08 + (i % 2) * 1.38, 4.36 + Math.floor(i / 2) * 0.145, 1.36, 0.15, { size: 5.8, color: INK }))
 }
 
 // ================================================================== 3. TECHNICAL APPROACH
@@ -126,7 +129,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   const cx = 1.9, cy = 2.95, r = 0.72
   C(s, cx - r, cy - r, 2 * r, WHITE, { line: '9CA3AF', lw: 1.5, dash: 'dash' })
   const nodes = [['📷', 'Snap', 'on-device AI', BLUE, -90], ['💰', 'Price', 'fair ₹/kg band', ORANGE, -30], ['♻️', 'Match', 'authorized recycler', PURPLE, 30],
-    ['🧾', 'Handover', 'GPS · QR · weight', GREEN, 90], ['💳', 'Pay', 'UPI instant', RED, 150], ['📄', 'Record', 'EPR · dataset', TEAL, 210]]
+    ['🧾', 'Handover', 'GPS · QR · weight', GREEN, 90], ['💵', 'Pay', 'cash or UPI + receipt', RED, 150], ['📒', 'Ledger', 'earnings · EPR', TEAL, 210]]
   nodes.forEach(([g, t, d, c, deg]) => {
     const a = deg * Math.PI / 180, nx = cx + r * Math.cos(a), ny = cy + r * Math.sin(a)
     C(s, nx - 0.23, ny - 0.23, 0.46, c)
@@ -157,13 +160,13 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   s.addText([{ text: 'AI & data core: ', options: { bold: true, color: GREEN } }, { text: 'on-device TFLite MobileNet classifier (12 e-waste categories, ~4 MB) · price engine = recycler quotes + LME/MCX Cu/Al indices + verified transactions, median & 30-day trend · matching = distance × price × capacity × rating · handover records SHA-256 hash-chained → tamper-evident EPR trail.', options: { color: INK } }],
     { x: 3.92, y: 2.2, w: 2.78, h: 0.66, fontFace: SANS, fontSize: 6.3, valign: 'middle', margin: 0, isTextBox: true })
   s.addImage({ data: PHONES, x: 3.75, y: 3.02, w: 3.1, h: 1.81 })
-  T(s, 'Collector app: Snap & Value → authorized recyclers → digital handover receipt (Hindi UI)', 3.75, 4.86, 3.1, 0.36, { size: 6.5, color: MUTED, italic: true, align: 'center' })
+  T(s, 'Collector app: Snap & Value + audio price board → authorized recyclers → GPS handover receipt (cash / UPI) with earnings ledger & safety tip', 3.75, 4.86, 3.1, 0.36, { size: 6.2, color: MUTED, italic: true, align: 'center' })
 
   T(s, 'TECHNOLOGIES USED', 7.0, 0.95, 2.8, 0.35, { size: 13, bold: true, color: MAROON, align: 'center' })
   const tech = [['📱', 'Mobile', 'Flutter (Android 8+, 1 GB RAM), SQLite + WorkManager offline sync, TensorFlow Lite on-device vision', OLIVE],
-    ['🗣️', 'Vernacular', 'Bhashini ASR / TTS (Hindi, Marathi), icon-first UI, voice prompts, SMS / IVR fallback', BROWN],
+    ['🗣️', 'Vernacular & safety', 'Bhashini ASR / TTS (Hindi, Marathi), audio price boards, icon-first UI, built-in hazardous-handling guidance, SMS / IVR fallback', BROWN],
     ['🗄️', 'Backend', 'FastAPI + PostgreSQL / PostGIS · price engine · matching service · hash-chained handover ledger', MAROON],
-    ['💳', 'Payments & ID', 'UPI payouts (NPCI), OTP-confirmed handover, phone-number digital ID, QR receipts', PURPLE],
+    ['💵', 'Payments & ledger', 'Cash or UPI (NPCI) — both logged with OTP-confirmed receipt; per-collector earnings ledger builds a financial history', PURPLE],
     ['🖥️', 'Consoles & data', 'React dashboards (recycler, MoM / CPCB), open price-dataset API, EPR / Form-6 export', TEAL]]
   tech.forEach(([g, t, d, c], i) => {
     const y = 1.38 + i * 0.78
@@ -183,10 +186,10 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
     ['FEASIBILITY ANALYSIS', TAN, '★★★★½', [['Tech is ready:', 'on-device image AI, offline sync, UPI and Bhashini are proven, free / open building blocks — no research risk.'],
       ['Data exists:', 'CPCB list of EPR-registered recyclers; MCX / LME metal indices; recycler quotes seed the price dataset.'],
       ['Low-end friendly:', 'APK < 15 MB, Android 8+, works on ₹6–8 k phones and 2G; SMS / IVR fallback.'],
-      ['Field-first:', 'pilot with 50 collectors + 3 authorized recyclers in Nagpur (JNARDDC\'s city), Marathi + Hindi.']]],
+      ['Field-first:', 'PS asks for ≥ 2 real collectors — we plan 50 collectors + 3 authorized recyclers in Nagpur (JNARDDC\'s city), with a live usability demo.']]],
     ['VIABILITY', GREY, '✔', [['Incentives align:', 'collector earns more (fair price, no middleman cut); recycler gets traceable feedstock; MoM gets data.'],
       ['Unit economics:', 'PCB informal ≈ ₹250/kg vs formal ₹310 + ₹15 incentive → ≈ +30 % per kg (pilot target, to be measured).'],
-      ['Trust by design:', 'OTP handover, visible price band, dispute button; only a phone number — no sensitive personal data.'],
+      ['Trust by design:', 'cash stays possible (OTP receipt), visible price band, dispute button; only a phone number — no sensitive personal data.'],
       ['Risks handled:', 'recycler adoption → onboarding kit + EPR credits; price gaming → multi-source median; connectivity → offline queue + SMS.']]],
     ['BUSINESS & SCALE', TAN, '💼', [['Revenue:', '1–2 % platform fee on recycler payouts; EPR compliance reports for PROs / producers; price-index data services.'],
       ['Policy fit:', 'E-Waste (Management) Rules 2022 EPR framework; automated Form-6; Mission LiFE & Swachh Bharat alignment.'],
@@ -230,7 +233,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   s.addShape(pres.shapes.LINE, { x: cx, y: cy - 0.45, w: 0, h: 0.9, line: { color: '1F2937', width: 1.5 } })
   T(s, 'IMPACTS', cx - 0.5, cy - 0.12, 0.48, 0.24, { size: 6.5, bold: true, color: TAN, align: 'center', valign: 'middle' })
   T(s, 'BENEFITS', cx + 0.02, cy - 0.12, 0.5, 0.24, { size: 6.5, bold: true, color: '1E5AA8', align: 'center', valign: 'middle' })
-  const left = [['Higher income', '≈ +25–35 % per kg through fair prices and no middleman cut (pilot target).'], ['Formalisation', 'Every lot enters the EPR chain with a GPS-stamped, traceable record.'],
+  const left = [['Higher income', '≈ +25–35 % per kg via fair prices; earnings ledger builds a financial history for credit.'], ['Formalisation', 'Every lot enters the EPR chain with a GPS-stamped, traceable record.'],
     ['Safer work', 'Pickup + training replace open burning and acid leaching.'], ['Critical minerals', 'Li, Co, Nd, Ta, Ga, In recovered instead of lost to backyard processing.']]
   const right = [['Social', 'Dignity, digital identity and records for lakhs of informal workers.'], ['Economic', 'Recyclers get compliant feedstock; producers earn EPR credits.'],
     ['Environmental', 'Less toxic burning / leaching; higher material recovery rates.'], ['Governance', 'MoM / CPCB see real-time flows, prices and hotspots.']]
@@ -294,7 +297,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   s.addImage({ data: P3, x: 2.45, y: 3.12, w: 0.95, h: 1.87 })
   s.addImage({ data: DASHK, x: 3.6, y: 3.12, w: 6.1, h: 1.87, sizing: { type: 'crop', x: 0, y: 0, w: 6.1, h: 1.87 } })
   R(s, 0.3, 5.03, 9.4, 0.22, WHITE, { line: NAVY, lw: 0.75 })
-  T(s, 'Field study: 50 collectors + 3 authorized recyclers, Nagpur · unit-economics report (informal vs platform earnings) delivered with the MVP', 0.4, 5.03, 9.2, 0.22, { size: 7.5, bold: true, color: NAVY, align: 'center', valign: 'middle' })
+  T(s, 'Deliverables: collector app + recycler module · datasets (materials, prices, recyclers, transactions) · field validation with real collectors (≥ 2 required, 50 planned) · live usability demo · unit-economics report', 0.4, 5.03, 9.2, 0.22, { size: 7.5, bold: true, color: NAVY, align: 'center', valign: 'middle' })
 }
 
 const out = path.join(__dirname, 'FireOrbit_SIH26229_KabadiwalaConnect.pptx')
