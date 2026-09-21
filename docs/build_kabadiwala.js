@@ -10,6 +10,7 @@ const LOGO = img('template_assets/sih_logo.png'), BRAIN = img('template_assets/b
 const P1 = img('kabadi/phone1.png'), P2 = img('kabadi/phone2.png'), P3 = img('kabadi/phone3.png'), PHONES = img('kabadi/phones.png'), DASHK = img('kabadi/dash.png')
 
 const TEAM = 'Fire Orbit', TEAM_ID = ''
+const DEMO = 'https://rahulskandagal.github.io/kabadiwala-connect/', REPO = 'https://github.com/rahulskandagal/kabadiwala-connect'
 
 const NAVY = '1F3864', FOOT = '0070C0', WHITE = 'FFFFFF', BLACK = '000000', INK = '1F2937', MUTED = '6B7280'
 const DARKBOX = '3A3A3A', YEL = 'F2C94C', REDP = 'E53935', GRNP = '43A047', TAN = 'B08D57', GREY = '7A7A7A', HEXC = 'C9A97C'
@@ -38,7 +39,7 @@ const C = (s, x, y, d, fill, o = {}) => s.addShape(pres.shapes.OVAL, { x, y, w: 
 const E = (s, glyph, x, y, d, size) => s.addText(glyph, { x, y, w: d, h: d, fontFace: EMOJI, fontSize: size, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
 function cloud(s, x, y, w, h, lines) {
   s.addShape(pres.shapes.CLOUD, { x, y, w, h, fill: { color: WHITE }, line: { color: BLACK, width: 2 } })
-  s.addText(lines.map((l, i) => ({ text: l, options: { color: '1A0DAB', bold: true, breakLine: i < lines.length - 1 } })),
+  s.addText(lines.map((l, i) => ({ text: typeof l === 'string' ? l : l.text, options: { color: '1A0DAB', bold: true, underline: typeof l !== 'string', hyperlink: typeof l === 'string' ? undefined : { url: l.url }, breakLine: i < lines.length - 1 } })),
     { x: x + w * 0.16, y: y + h * 0.2, w: w * 0.68, h: h * 0.6, fontFace: SANS, fontSize: 10, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
 }
 function callout(s, x, y, w, h, label, body, size = 9.5) {
@@ -73,10 +74,10 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   callout(s, 0.2, 0.98, 3.05, 1.1, 'Real-world issue:', 'India generates ≈ 4 million tonnes of e-waste a year and over 90 % moves through kabadiwalas and waste-pickers who sit outside the formal EPR chain — ending in open-air cable burning and acid leaching.')
   callout(s, 0.2, 2.16, 3.05, 1.02, 'Why important:', 'Collectors do not know fair prices, authorized recyclers or compliant handover; recyclers cannot source traceable feedstock; India loses lithium, cobalt, neodymium, tantalum, gallium, indium — and workers lose their health.')
   callout(s, 0.2, 3.26, 3.05, 0.98, 'Solution:', 'A Hindi / Marathi, voice-first, offline-capable Android app: photo → instant AI price → audio price board → authorized recycler → GPS-verified handover → cash or UPI, logged in an earnings ledger → EPR record.')
-  cloud(s, 0.15, 4.3, 1.75, 0.95, ['App mockups', 'Nagpur pilot plan'])
+  cloud(s, 0.15, 4.3, 1.75, 0.95, [{ text: 'Live App', url: DEMO }, { text: 'GitHub', url: REPO }])
   T(s, 'Prototype', 2.05, 4.32, 1.2, 0.28, { size: 12, bold: true, color: BLACK })
   s.addShape(pres.shapes.LINE, { x: 1.95, y: 4.62, w: 0.55, h: 0.12, flipV: true, line: { color: BLACK, width: 2, endArrowType: 'triangle' } })
-  T(s, 'screens on the next pages;\nMVP APK in pilot week 4', 2.05, 4.78, 1.3, 0.45, { size: 7.5, italic: true, color: INK })
+  T(s, 'installable PWA — open the link\non any Android phone', 2.05, 4.78, 1.3, 0.45, { size: 7.5, italic: true, color: INK })
 
   // pyramid
   s.addShape(pres.shapes.ISOSCELES_TRIANGLE, { x: 3.4, y: 0.98, w: 3.5, h: 4.27, fill: { color: 'F0FDF4' }, line: { color: '16A34A', width: 3, dashType: 'dash' } })
@@ -143,7 +144,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
     T(s, d, bx, ly + 0.18, bw, 0.2, { size: 6.5, color: MUTED, align: side })
   })
   E(s, '♻️', cx - 0.3, cy - 0.3, 0.6, 22)
-  cloud(s, 0.15, 4.42, 1.6, 0.83, ['Offline-first', 'Android 8+'])
+  cloud(s, 0.15, 4.42, 1.6, 0.83, [{ text: 'Live App', url: DEMO }, { text: 'Code', url: REPO }])
   T(s, 'Works on a\n₹6–8 k phone', 2.35, 4.5, 1.2, 0.5, { size: 11, bold: true, color: BLACK })
   s.addShape(pres.shapes.LINE, { x: 1.8, y: 4.72, w: 0.5, h: 0.1, flipV: true, line: { color: BLACK, width: 2, endArrowType: 'triangle' } })
 
@@ -186,7 +187,7 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
     ['FEASIBILITY ANALYSIS', TAN, '★★★★½', [['Tech is ready:', 'on-device image AI, offline sync, UPI and Bhashini are proven, free / open building blocks — no research risk.'],
       ['Data exists:', 'CPCB list of EPR-registered recyclers; MCX / LME metal indices; recycler quotes seed the price dataset.'],
       ['Low-end friendly:', 'APK < 15 MB, Android 8+, works on ₹6–8 k phones and 2G; SMS / IVR fallback.'],
-      ['Field-first:', 'PS asks for ≥ 2 real collectors — we plan 50 collectors + 3 authorized recyclers in Nagpur (JNARDDC\'s city), with a live usability demo.']]],
+      ['Field-first:', 'PS asks for ≥ 2 real collectors — we plan 50 collectors + 3 authorized recyclers in Nagpur (JNARDDC\'s city); the PWA is live today for the usability demo.']]],
     ['VIABILITY', GREY, '✔', [['Incentives align:', 'collector earns more (fair price, no middleman cut); recycler gets traceable feedstock; MoM gets data.'],
       ['Unit economics:', 'PCB informal ≈ ₹250/kg vs formal ₹310 + ₹15 incentive → ≈ +30 % per kg (pilot target, to be measured).'],
       ['Trust by design:', 'cash stays possible (OTP receipt), visible price band, dispute button; only a phone number — no sensitive personal data.'],
@@ -290,14 +291,16 @@ function callout(s, x, y, w, h, label, body, size = 9.5) {
   })
   s.addShape(pres.shapes.LINE, { x: 0.3, y: 2.72, w: 9.4, h: 0, line: { color: 'C9A97C', width: 1, dashType: 'dash', endArrowType: 'triangle' } })
   s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 2.85, w: 10, h: 2.45, fill: { color: 'E5E7EB' }, line: { color: 'E5E7EB', width: 0 } })
-  T(s, 'UI / UX — collector app (Hindi) and recycler / MoM console', 0.3, 2.88, 6, 0.22, { size: 9, bold: true, color: NAVY })
+  T(s, 'UI / UX — working collector app (Hindi) and recycler / MoM console', 0.3, 2.88, 6, 0.22, { size: 9, bold: true, color: NAVY })
   T(s, 'Snap & Value  ·  authorized recyclers  ·  digital handover receipt  ·  console', 3.5, 2.88, 6.2, 0.22, { size: 7.5, italic: true, color: MUTED, align: 'right' })
   s.addImage({ data: P1, x: 0.35, y: 3.12, w: 0.95, h: 1.87 })
   s.addImage({ data: P2, x: 1.4, y: 3.12, w: 0.95, h: 1.87 })
   s.addImage({ data: P3, x: 2.45, y: 3.12, w: 0.95, h: 1.87 })
   s.addImage({ data: DASHK, x: 3.6, y: 3.12, w: 6.1, h: 1.87, sizing: { type: 'crop', x: 0, y: 0, w: 6.1, h: 1.87 } })
-  R(s, 0.3, 5.03, 9.4, 0.22, WHITE, { line: NAVY, lw: 0.75 })
-  T(s, 'Deliverables: collector app + recycler module · datasets (materials, prices, recyclers, transactions) · field validation with real collectors (≥ 2 required, 50 planned) · live usability demo · unit-economics report', 0.4, 5.03, 9.2, 0.22, { size: 7.5, bold: true, color: NAVY, align: 'center', valign: 'middle' })
+  R(s, 0.3, 4.98, 9.4, 0.28, WHITE, { line: NAVY, lw: 0.75 })
+  s.addText([{ text: 'Working prototype (PWA):  ', options: { bold: true, color: NAVY } }, { text: DEMO, options: { hyperlink: { url: DEMO }, color: '1A0DAB', underline: true } },
+    { text: '     Source code:  ', options: { bold: true, color: NAVY } }, { text: REPO, options: { hyperlink: { url: REPO }, color: '1A0DAB', underline: true } }],
+    { x: 0.4, y: 4.98, w: 9.2, h: 0.28, fontFace: SANS, fontSize: 8, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
 }
 
 const out = path.join(__dirname, 'FireOrbit_SIH26229_KabadiwalaConnect.pptx')
