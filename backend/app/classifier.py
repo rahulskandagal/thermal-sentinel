@@ -236,6 +236,7 @@ class ThermalClassifier:
             "classes": classes,
             "cv": cv,
             "spatial_holdout": spatial,
+            "stress_test": self._stress_test(calibrated, df.iloc[te_idx], yte),
             "ablation": {
                 "rules_only": _score(yte, rule_pred),
                 "model_only": _score(yte, pred),
@@ -263,18 +264,38 @@ class ThermalClassifier:
 
     @staticmethod
     def _calibrate(X: pd.DataFrame, y: pd.Series, groups: pd.Series):
-        """Isotonic needs a decent number of samples per class; fall back to Platt scaling."""
-        counts = y.value_counts()
-        method = "isotonic" if counts.min() >= 400 else "sigmoid"
+        """Fit isotonic, Platt and no calibration; keep whichever is actually best calibrated.
+
+        Calibration is not free: when a model is already sharp and well calibrated, squeezing
+        it through a sigmoid makes the probabilities worse. So the choice is measured on a
+        group-held-out slice of the training data rather than assumed from class counts.
+        """
         n_splits = int(min(3, max(2, groups.nunique())))
         try:
-            folds = list(GroupKFold(n_splits=n_splits).split(X, y, groups))
-            cal = CalibratedClassifierCV(_hgb(), method=method, cv=folds, ensemble=True)
-            cal.fit(X, y)
-            return cal, method
-        except Exception as e:  # noqa: BLE001 - tiny or degenerate datasets
-            log.warning("calibration failed (%s); falling back to the uncalibrated model", e)
-            return _hgb().fit(X, y), "none"
+            fit_idx, val_idx = next(GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=7)
+                                    .split(X, y, groups))
+        except ValueError:
+            fit_idx, val_idx = np.arange(len(X)), np.arange(len(X))
+        Xf, yf, gf = X.iloc[fit_idx], y.iloc[fit_idx], groups.iloc[fit_idx]
+        Xv, yv = X.iloc[val_idx], y.iloc[val_idx]
+
+        candidates = []
+        plain = _hgb().fit(Xf, yf)
+        candidates.append(("none", plain, expected_calibration_error(yv, plain.predict_proba(Xv), plain.classes_)))
+        for method in ("isotonic", "sigmoid"):
+            try:
+                folds = list(GroupKFold(n_splits=n_splits).split(Xf, yf, gf))
+                m = CalibratedClassifierCV(_hgb(), method=method, cv=folds, ensemble=True).fit(Xf, yf)
+                candidates.append((method, m, expected_calibration_error(yv, m.predict_proba(Xv), m.classes_)))
+            except Exception as e:  # noqa: BLE001 - tiny or degenerate class counts
+                log.warning("%s calibration unavailable (%s)", method, e)
+
+        method, _, ece = min(candidates, key=lambda c: c[2])
+        log.info("calibration candidates: %s -> %s", {c[0]: round(c[2], 4) for c in candidates}, method)
+        if method == "none":
+            return _hgb().fit(X, y), "none (already calibrated)"
+        folds = list(GroupKFold(n_splits=n_splits).split(X, y, groups))
+        return CalibratedClassifierCV(_hgb(), method=method, cv=folds, ensemble=True).fit(X, y), method
 
     @staticmethod
     def _blend(ml_label, ml_conf, rule_label):
@@ -295,6 +316,30 @@ class ThermalClassifier:
                 "accuracy_mean": round(float(np.mean(accs)), 4), "accuracy_std": round(float(np.std(accs)), 4),
                 "macro_f1_mean": round(float(np.mean(f1s)), 4), "macro_f1_std": round(float(np.std(f1s)), 4),
                 "folds": folds}
+
+    def _stress_test(self, model, df_test: pd.DataFrame, y_test: pd.Series, rates=(0.25, 0.5)) -> dict:
+        """Accuracy when the context is missing, which is the honest question about this data.
+
+        OSM coverage across India is uneven: land use is unmapped in large areas and plenty of
+        plants are absent entirely. Blanking land cover and the nearest facility for a share of
+        the test set says how much of the accuracy is real signal and how much is a tidy archive.
+        """
+        classes = np.array(model.classes_)
+        rows = []
+        for rate in rates:
+            d = df_test.copy()
+            rng = np.random.default_rng(11)
+            blind = rng.random(len(d)) < rate
+            d.loc[blind, "landcover"] = "unknown"
+            d.loc[blind, "nearest_site_type"] = "none"
+            d.loc[blind, "dist_industrial_km"] = 999.0
+            d.loc[blind, "n_sites_5km"] = 0
+            proba = model.predict_proba(feature_matrix(d))
+            ml = classes[proba.argmax(axis=1)]
+            pred = self._blend(ml, proba.max(axis=1), rule_classify(d)["rule_label"].to_numpy())
+            rows.append({"context_missing": rate, **_score(y_test, pred)})
+        return {"scheme": "land cover and nearest facility blanked for a share of the test set",
+                "levels": rows}
 
     def _spatial_holdout(self, X: pd.DataFrame, y: pd.Series, blocks: pd.Series, max_blocks: int = 6) -> dict:
         """Train on the rest of the country, predict one ~330 km block never seen before."""

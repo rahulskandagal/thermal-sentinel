@@ -29,7 +29,7 @@ function Reliability({ curve }) {
 
 export default function ModelPanel({ model }) {
   if (!model || model.status) return <section className="panel"><h3>Model</h3><p className="hint">Not trained yet.</p></section>
-  const { cv, spatial_holdout: sp, ablation: ab, calibration: cal, report, classes } = model
+  const { cv, spatial_holdout: sp, ablation: ab, calibration: cal, stress_test: st, report, classes } = model
 
   return (
     <section className="panel">
@@ -59,6 +59,26 @@ export default function ModelPanel({ model }) {
       </table>
       <p className="hint">The rules alone are already strong — they are what makes every label explainable. The model
         earns its place on the ambiguous cases, and below {Math.round(0.55 * 100)}% probability the rules take the decision back.</p>
+
+      {st?.levels?.length > 0 && (
+        <>
+          <h4>When the context is missing</h4>
+          <table className="mini-table">
+            <thead><tr><th>land cover &amp; facility blanked</th><th>accuracy</th><th>macro F1</th></tr></thead>
+            <tbody>
+              <tr><td>none (as measured above)</td><td>{pct(ab?.hybrid?.accuracy)}</td><td>{pct(ab?.hybrid?.macro_f1)}</td></tr>
+              {st.levels.map((l) => (
+                <tr key={l.context_missing}>
+                  <td>{Math.round(l.context_missing * 100)}% of detections</td>
+                  <td>{pct(l.accuracy)}</td><td>{pct(l.macro_f1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint">OSM coverage across India is uneven. This blanks land cover and the nearest facility for
+            a share of the test set, so the score says how much is real signal rather than a tidy archive.</p>
+        </>
+      )}
 
       <h4>Is the confidence honest?</h4>
       <Reliability curve={cal?.curve} />

@@ -33,9 +33,12 @@ if sp.get("accuracy_mean") is not None:
           f"over {len(sp['blocks'])} blocks")
 print(f"ablation            rules {ab['rules_only']['accuracy']:.4f} | model {ab['model_only']['accuracy']:.4f} "
       f"| hybrid {ab['hybrid']['accuracy']:.4f}")
-print(f"calibration ({cal['method']:8s}) ECE {cal['ece_before']:.4f} -> {cal['ece_after']:.4f}   "
+print(f"calibration         {cal['method']}: ECE {cal['ece_before']:.4f} -> {cal['ece_after']:.4f}   "
       f"Brier {cal['brier_before']:.4f} -> {cal['brier_after']:.4f}")
-print("per-class F1       ", {k: round(v["f1-score"], 3) for k, v in mm["report"].items() if k in mm["classes"]})
+for lv in mm["stress_test"]["levels"]:
+    print(f"context {int(lv['context_missing'] * 100):3d}% missing  acc {lv['accuracy']:.4f}  macro-F1 {lv['macro_f1']:.4f}")
+f1s = {k: round(v["f1-score"], 3) for k, v in mm["report"].items() if k in mm["classes"]}
+print("per-class F1       ", f1s)
 print("top features       ", [f["feature"] for f in mm["feature_importance"][:8]])
 
 s = db.stats()
@@ -67,7 +70,12 @@ checks = [
     ("cross-validated accuracy >= 0.90", cv["accuracy_mean"] >= 0.90),
     ("unseen-region accuracy >= 0.80", (sp.get("accuracy_mean") or 1.0) >= 0.80),
     ("hybrid no worse than rules alone", ab["hybrid"]["accuracy"] >= ab["rules_only"]["accuracy"] - 1e-9),
-    ("calibration improved or already tight", cal["ece_after"] <= max(cal["ece_before"], 0.05) + 1e-9),
+    # Calibrating must not make the probabilities worse than leaving them alone.
+    ("calibration did not regress", cal["ece_after"] <= cal["ece_before"] + 0.002),
+    # A class that is never predicted is a dead class, however good the headline accuracy is.
+    (f"every class usable (min F1 >= 0.60, worst {min(f1s.values()):.2f})", min(f1s.values()) >= 0.60),
+    ("still works with half the context missing (>= 0.75)",
+     min(lv["accuracy"] for lv in mm["stress_test"]["levels"]) >= 0.75),
     ("persistent sources found", s["n_persistent_sources"] > 0),
     ("alerts generated", s["n_alerts"] > 0),
     ("every alert kind present", set(s["alerts_by_kind"]) >= {"FRP_ANOMALY", "NEW_SOURCE", "WENT_DARK", "UNREGISTERED"}),

@@ -107,8 +107,17 @@ FOREST_REGIONS = [
     ("Sahyadri / Satara grasslands", 17.60, 73.90, 0.4, 5, "shrub_grass"),
 ]
 
+# Urban waste / landfill fires. India's big dumpsites burn repeatedly through the dry months,
+# and they are the class with no industrial or vegetation context to lean on — which is exactly
+# why there have to be enough of them to learn from.
 LANDFILLS = [("Ghazipur landfill, Delhi", 28.623, 77.328), ("Deonar dumping ground, Mumbai", 19.060, 72.925),
-             ("Bhalswa landfill, Delhi", 28.740, 77.160), ("Brahmapuram, Kochi", 10.000, 76.355)]
+             ("Bhalswa landfill, Delhi", 28.740, 77.160), ("Brahmapuram, Kochi", 10.000, 76.355),
+             ("Okhla landfill, Delhi", 28.505, 77.290), ("Mulund dumping ground, Mumbai", 19.170, 72.955),
+             ("Dhapa landfill, Kolkata", 22.535, 88.430), ("Kodungaiyur dumpyard, Chennai", 13.135, 80.255),
+             ("Perungudi dumpyard, Chennai", 12.965, 80.240), ("Jawaharnagar dumpyard, Hyderabad", 17.545, 78.630),
+             ("Mavallipura, Bengaluru", 13.100, 77.520), ("Uruli Devachi, Pune", 18.430, 73.955),
+             ("Pirana dumpsite, Ahmedabad", 22.985, 72.550), ("Bhandewadi dumpyard, Nagpur", 21.145, 79.145),
+             ("Bhagtanwala dumpsite, Amritsar", 31.655, 74.850), ("Achan landfill, Srinagar", 34.115, 74.755)]
 
 
 # ------------------------------------------------------------------ helpers
@@ -259,14 +268,16 @@ def generate(seed: int = 7) -> tuple[pd.DataFrame, list[dict]]:
                                      rng.random() < 0.3, _lognormal(rng, 40, 0.9), "WILDFIRE",
                                      lc if rng.random() > 0.06 else "unknown", name))
 
-    # Landfill / urban waste fires
+    # Landfill / urban waste fires: recurring flare-ups through the dry season
     for name, lat, lon in LANDFILLS:
-        for _ in range(int(rng.integers(1, 3))):
-            start = DEMO_START + timedelta(days=int(rng.integers(0, DEMO_DAYS - 4)))
-            for dd in range(int(rng.integers(2, 5))):
-                for _ in range(int(rng.integers(1, 4))):
-                    rows.append(_row(rng, lat, lon, start + timedelta(days=dd), rng.random() < 0.4,
-                                     _lognormal(rng, 15, 0.8), "OTHER", "built", name))
+        for _ in range(int(rng.integers(3, 8))):
+            start = DEMO_START + timedelta(days=int(rng.integers(0, DEMO_DAYS - 5)))
+            for dd in range(int(rng.integers(2, 6))):
+                for _ in range(int(rng.integers(2, 6))):
+                    rows.append(_row(rng, lat + rng.normal(0, 0.002), lon + rng.normal(0, 0.002),
+                                     start + timedelta(days=dd), rng.random() < 0.4,
+                                     _lognormal(rng, 15, 0.8), "OTHER",
+                                     "built" if rng.random() > 0.15 else "unknown", name))
 
     df = pd.DataFrame(rows).sort_values("acq_datetime").reset_index(drop=True)
     return df, sites
