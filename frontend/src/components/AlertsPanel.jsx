@@ -12,7 +12,7 @@ function severityClass(s) {
   return s >= 70 ? 'sev-high' : s >= 45 ? 'sev-mid' : 'sev-low'
 }
 
-export default function AlertsPanel({ alerts, onSelectSource, filters, setFilters }) {
+export default function AlertsPanel({ alerts, stats, onSelectSource, filters, setFilters }) {
   const [kind, setKind] = useState('ALL')
   const [minSev, setMinSev] = useState(0)
 
@@ -32,13 +32,13 @@ export default function AlertsPanel({ alerts, onSelectSource, filters, setFilter
   return (
     <section className="panel">
       <h3>
-        Alerts <span className="hint">{shown.length} of {alerts.length}</span>
-        <a className="link" href={api.exportUrl('alerts')} download style={{ marginLeft: 'auto' }}>.csv</a>
+        <span>Alerts <span className="hint">{shown.length} of {alerts.length}</span></span>
+        <a className="link" href={api.exportUrl('alerts')} download>.csv</a>
       </h3>
       <p className="hint">
-        22,179 detections are not an operator&apos;s worklist. These are the four things worth a look:
-        a known source burning above its own baseline, a source that just appeared, one that went quiet,
-        and industrial heat with no facility mapped near it.
+        {(stats?.totals?.total || 0).toLocaleString()} detections are not an operator&apos;s worklist. These are the
+        four things worth a look: a known source burning above its own baseline, a source that just appeared,
+        one that went quiet, and industrial heat with no facility mapped near it.
       </p>
 
       <div className="chips">

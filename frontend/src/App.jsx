@@ -194,7 +194,7 @@ export default function App() {
         </nav>
         {tab === 'overview' && <StatsPanel stats={stats} onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />}
         {tab === 'alerts' && (
-          <AlertsPanel alerts={alerts} filters={filters} setFilters={setFilters}
+          <AlertsPanel alerts={alerts} stats={stats} filters={filters} setFilters={setFilters}
             onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />
         )}
         {tab === 'filters' && <FilterPanel filters={filters} setFilters={setFilters} counts={counts} stats={stats} />}

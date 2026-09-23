@@ -102,7 +102,7 @@ z ≥ 4 (median/MAD, not mean/std: a large enough spike drags the mean up far en
 
 ## Alerts and the analyst loop
 
-22,179 detections are not a worklist. The pipeline reduces them to four kinds of alert, each scored
+Twenty-odd thousand detections are not a worklist. The pipeline reduces them to four kinds of alert, each scored
 0–100 so the feed sorts itself:
 
 | Alert | Meaning |

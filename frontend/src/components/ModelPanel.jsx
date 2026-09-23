@@ -33,13 +33,14 @@ export default function ModelPanel({ model }) {
 
   return (
     <section className="panel">
-      <h3>Model <span className="hint">{model.n_features} features · {model.n_train?.toLocaleString()} train / {model.n_test?.toLocaleString()} test</span></h3>
+      <h3><span>Model</span> <span className="hint">{model.n_features} features · {model.n_train?.toLocaleString()} train / {model.n_test?.toLocaleString()} test</span></h3>
 
       <div className="kpis">
         <div className="kpi"><div className="kpi-v">{pct(cv?.accuracy_mean)}</div><div className="kpi-l">cross-validated accuracy <span className="pm">± {((cv?.accuracy_std || 0) * 100).toFixed(1)}</span></div></div>
         <div className="kpi"><div className="kpi-v">{pct(sp?.accuracy_mean)}</div><div className="kpi-l">on a region it never saw</div></div>
         <div className="kpi"><div className="kpi-v">{pct(model.macro_f1)}</div><div className="kpi-l">macro F1 (all six classes)</div></div>
-        <div className="kpi"><div className="kpi-v">{cal ? cal.ece_after.toFixed(3) : '–'}</div><div className="kpi-l">calibration error after {cal?.method}</div></div>
+        <div className="kpi"><div className="kpi-v">{cal ? cal.ece_after.toFixed(3) : '–'}</div>
+          <div className="kpi-l">{cal?.method?.startsWith('none') ? 'calibration error (already calibrated)' : `calibration error after ${cal?.method}`}</div></div>
       </div>
       <p className="hint">
         Every split is group-aware: all detections of one thermal source stay on the same side, so
