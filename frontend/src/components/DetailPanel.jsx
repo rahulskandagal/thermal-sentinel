@@ -1,4 +1,5 @@
 import { LABELS } from '../api.js'
+import FeedbackBox from './FeedbackBox.jsx'
 
 function Sparkline({ series }) {
   if (!series?.length) return null
@@ -41,10 +42,13 @@ export default function DetailPanel({ detail: d, onClose }) {
       <h2>{isHot ? `Detection ${d.id}` : (siteName && d.dist_industrial_km < 3 ? siteName : 'Persistent thermal source')}</h2>
       <div className="coords">{lat.toFixed(4)}°N, {lon.toFixed(4)}°E · {isHot ? `${d.acq_datetime.replace('T', ' ').replace('Z', ' UTC')} · ${d.satellite === 'N' ? 'Suomi-NPP' : d.satellite === '1' ? 'NOAA-20' : d.satellite} ${d.instrument}` : `${d.first_seen} → ${d.last_seen}`}</div>
 
-      <div className="conf-bar" title="classifier confidence">
+      <div className="conf-bar" title="calibrated probability: 80% here means right about 80% of the time">
         <div style={{ width: `${Math.round(d.confidence * 100)}%`, background: label.color }} />
         <span>{Math.round(d.confidence * 100)}% confidence{isHot ? ` · ${d.method}` : ''}</span>
       </div>
+      {isHot && d.rules_agree === 0 && (
+        <p className="hint warn-line">The explainable rules disagree with the model here — worth an analyst&apos;s eye.</p>
+      )}
 
       {isHot && d.reasons?.length > 0 && (
         <>
@@ -60,8 +64,9 @@ export default function DetailPanel({ detail: d, onClose }) {
         {isHot && <Row k="Day / night" v={d.daynight === 'N' ? 'Night' : 'Day'} />}
         {isHot && <Row k="FIRMS confidence" v={d.confidence_obs != null ? `${Math.round(d.confidence_obs * 100)}%` : null} />}
         <Row k="Mean FRP at source" v={`${(+d.frp_mean).toFixed(1)} MW`} />
+        <Row k="Median FRP at source" v={d.frp_med != null ? `${(+d.frp_med).toFixed(1)} MW` : null} />
         {!isHot && <Row k="Max FRP" v={`${d.frp_max} MW`} />}
-        {isHot && <Row k="FRP z-score vs source" v={(+d.frp_z).toFixed(2)} />}
+        {isHot && <Row k="Above baseline" v={d.frp_med ? `${(d.frp / Math.max(d.frp_med, 0.2)).toFixed(1)}× median (robust z ${(+d.frp_robust_z).toFixed(1)})` : null} />}
       </div>
 
       <h4>Persistence</h4>
@@ -79,11 +84,15 @@ export default function DetailPanel({ detail: d, onClose }) {
         <Row k="Land cover" v={d.landcover} />
         <Row k="Nearest industry" v={siteName ? `${siteName} (${d.nearest_site_type?.replace('_', ' ')})` : 'none within 10 km'} />
         <Row k="Distance" v={d.dist_industrial_km < 900 ? `${(d.dist_industrial_km * 1000).toFixed(0)} m` : null} />
+        {isHot && <Row k="Mapped facilities ≤5 km" v={d.n_sites_5km} />}
+        {isHot && <Row k="Other detections ≤5 km" v={d.neighbours_5km} />}
         {d.true_label && <Row k="Demo ground truth" v={<span style={{ color: d.true_label === d.label ? '#4ade80' : '#ff6b6b' }}>{LABELS[d.true_label]?.name || d.true_label}</span>} />}
       </div>
 
       <h4>Source activity timeline</h4>
       <Sparkline series={d.timeseries} />
+
+      <FeedbackBox detail={d} />
 
       <h4>Verify with imagery</h4>
       <div className="links">

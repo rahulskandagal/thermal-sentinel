@@ -11,10 +11,12 @@ from . import config
 
 HOTSPOT_COLS = [
     "id", "latitude", "longitude", "acq_datetime", "acq_date", "satellite", "instrument", "brightness", "brightness_2",
-    "frp", "confidence_obs", "daynight", "is_night", "month", "hour", "cell_id", "group_id", "n_det", "n_days",
-    "span_days", "max_gap_days", "night_frac", "frp_mean", "frp_cv", "frp_z", "active_ratio", "persistence_score",
-    "is_persistent", "dist_industrial_km", "nearest_site_id", "nearest_site_type", "nearest_site_name", "landcover",
-    "label", "confidence", "method", "reasons", "is_anomaly", "true_label",
+    "frp", "confidence_obs", "daynight", "is_night", "month", "hour", "local_hour", "cell_id", "group_id",
+    "spatial_block", "n_det", "n_days", "span_days", "max_gap_days", "night_frac", "frp_mean", "frp_cv", "frp_z",
+    "frp_med", "frp_mad", "frp_robust_z", "frp_ratio_base", "dets_per_active_day", "source_spread_m",
+    "active_ratio", "persistence_score", "is_persistent", "dist_industrial_km", "dist_site_2nd_km", "n_sites_5km",
+    "neighbours_1km", "neighbours_5km", "nearest_site_id", "nearest_site_type", "nearest_site_name", "landcover",
+    "label", "confidence", "method", "rules_agree", "reasons", "is_anomaly", "anomaly_severity", "true_label",
 ]
 
 
@@ -33,10 +35,23 @@ def init():
     with connect() as con:
         con.executescript("""
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+        -- Analyst corrections outlive a pipeline run: they are training data, not results.
+        CREATE TABLE IF NOT EXISTS feedback (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            hotspot_id  TEXT,
+            group_id    TEXT,
+            label       TEXT NOT NULL,
+            verdict     TEXT NOT NULL,          -- confirm | correct
+            note        TEXT,
+            analyst     TEXT,
+            created_at  TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_fb_group ON feedback(group_id);
         """)
 
 
-def save_run(hotspots: pd.DataFrame, sites: list[dict], sources: pd.DataFrame, meta: dict):
+def save_run(hotspots: pd.DataFrame, sites: list[dict], sources: pd.DataFrame, meta: dict,
+             alerts_df: pd.DataFrame | None = None):
     h = hotspots.copy()
     for c in HOTSPOT_COLS:
         if c not in h.columns:
@@ -52,6 +67,8 @@ def save_run(hotspots: pd.DataFrame, sites: list[dict], sources: pd.DataFrame, m
         h.to_sql("hotspots", con, if_exists="replace", index=False)
         s.to_sql("sites", con, if_exists="replace", index=False)
         sources.to_sql("sources", con, if_exists="replace", index=False)
+        a = alerts_df if alerts_df is not None else pd.DataFrame(columns=["id", "kind", "severity"])
+        a.to_sql("alerts", con, if_exists="replace", index=False)
         con.executescript("""
         CREATE INDEX IF NOT EXISTS idx_h_ll ON hotspots(latitude, longitude);
         CREATE INDEX IF NOT EXISTS idx_h_date ON hotspots(acq_date);
@@ -145,6 +162,45 @@ def get_sources(bbox=None, labels=None, min_days=0) -> list[dict]:
         return _rows(con.execute(sql, args))
 
 
+def get_alerts(kinds=None, min_severity: float = 0.0, limit: int = 500) -> list[dict]:
+    with connect() as con:
+        if not con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alerts'").fetchone():
+            return []
+        sql, args = "SELECT * FROM alerts WHERE severity >= ?", [min_severity]
+        if kinds:
+            sql += f" AND kind IN ({','.join('?' * len(kinds))})"
+            args += list(kinds)
+        sql += " ORDER BY severity DESC LIMIT ?"
+        args.append(int(limit))
+        return _rows(con.execute(sql, args))
+
+
+# ------------------------------------------------------------------ analyst feedback
+
+def add_feedback(label: str, verdict: str, hotspot_id=None, group_id=None, note=None, analyst=None) -> dict:
+    from datetime import datetime
+    row = (hotspot_id, group_id, label, verdict, note, analyst or "analyst",
+           datetime.utcnow().isoformat(timespec="seconds") + "Z")
+    with connect() as con:
+        cur = con.execute("INSERT INTO feedback(hotspot_id, group_id, label, verdict, note, analyst, created_at) "
+                          "VALUES(?,?,?,?,?,?,?)", row)
+        return {"id": cur.lastrowid, "hotspot_id": row[0], "group_id": row[1], "label": label,
+                "verdict": verdict, "note": note, "analyst": row[5], "created_at": row[6]}
+
+
+def get_feedback(limit: int = 1000) -> list[dict]:
+    with connect() as con:
+        return _rows(con.execute("SELECT * FROM feedback ORDER BY id DESC LIMIT ?", (int(limit),)))
+
+
+def feedback_labels() -> dict:
+    """group_id -> most recent analyst label, used to override training labels on retrain."""
+    with connect() as con:
+        rows = con.execute("SELECT group_id, label FROM feedback WHERE group_id IS NOT NULL "
+                           "AND verdict='correct' ORDER BY id").fetchall()
+    return {r["group_id"]: r["label"] for r in rows}
+
+
 def get_sites(bbox=None) -> list[dict]:
     sql, args = "SELECT * FROM sites", []
     if bbox:
@@ -169,5 +225,10 @@ def stats() -> dict:
         r = con.execute("SELECT COUNT(*) c, SUM(label = true_label) ok FROM hotspots WHERE true_label IS NOT NULL").fetchone()
         if r and r["c"]:
             acc = round(r["ok"] / r["c"], 4)
+        alerts = {}
+        if con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alerts'").fetchone():
+            alerts = {r["kind"]: r["c"] for r in con.execute("SELECT kind, COUNT(*) c FROM alerts GROUP BY kind")}
+        n_feedback = con.execute("SELECT COUNT(*) c FROM feedback").fetchone()["c"]
     return {"totals": totals, "by_label": by_label, "by_day": by_day, "n_persistent_sources": n_sources,
-            "n_sites": n_sites, "top_sources": top, "label_accuracy_vs_truth": acc}
+            "n_sites": n_sites, "top_sources": top, "label_accuracy_vs_truth": acc,
+            "alerts_by_kind": alerts, "n_alerts": sum(alerts.values()), "n_feedback": n_feedback}

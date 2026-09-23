@@ -8,10 +8,12 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from . import alerts as alerts_mod
 from . import config, db, pipeline
+from .classifier import LABELS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("thermalsentinel")
@@ -153,6 +155,70 @@ def model():
     return m or {"status": "model not trained yet"}
 
 
+# ------------------------------------------------------------------ alerts
+
+@app.get("/api/alerts")
+def alerts(kinds: Optional[str] = Query(None, description="FRP_ANOMALY, NEW_SOURCE, WENT_DARK, UNREGISTERED"),
+           min_severity: float = Query(0.0, ge=0, le=100), limit: int = Query(500, le=5000)):
+    k = [x.strip().upper() for x in kinds.split(",") if x.strip()] if kinds else None
+    rows = db.get_alerts(k, min_severity, limit)
+    return {"kinds": alerts_mod.KINDS, "count": len(rows), "alerts": rows}
+
+
+# ------------------------------------------------------------------ analyst feedback loop
+
+class FeedbackRequest(BaseModel):
+    label: str = Field(..., description="the class the analyst says this is")
+    verdict: str = Field("correct", description="confirm (model was right) | correct (analyst overrode it)")
+    hotspot_id: Optional[str] = None
+    group_id: Optional[str] = None
+    note: Optional[str] = None
+    analyst: Optional[str] = None
+
+
+@app.post("/api/feedback")
+def post_feedback(req: FeedbackRequest):
+    if req.label.upper() not in LABELS:
+        raise HTTPException(400, f"label must be one of {LABELS}")
+    if req.verdict not in ("confirm", "correct"):
+        raise HTTPException(400, "verdict must be 'confirm' or 'correct'")
+    if not req.hotspot_id and not req.group_id:
+        raise HTTPException(400, "give hotspot_id or group_id")
+    gid = req.group_id
+    if not gid and req.hotspot_id:
+        h = db.get_hotspot(req.hotspot_id)
+        gid = h["group_id"] if h else None
+    return db.add_feedback(req.label.upper(), req.verdict, req.hotspot_id, gid, req.note, req.analyst)
+
+
+@app.get("/api/feedback")
+def list_feedback(limit: int = Query(200, le=5000)):
+    rows = db.get_feedback(limit)
+    return {"count": len(rows), "pending_corrections": len(db.feedback_labels()), "feedback": rows}
+
+
+@app.post("/api/retrain")
+def retrain():
+    """Refit the model with analyst corrections applied on top of the archive labels."""
+    if _job["running"]:
+        raise HTTPException(409, "A pipeline run is already in progress")
+
+    def _go():
+        _job.update(running=True, status="retraining", error=None)
+        try:
+            m = pipeline.train_model(use_feedback=True)
+            _job.update(status="done", meta={"retrained": True, "accuracy": m.get("accuracy"),
+                                             "analyst_labels_applied": m.get("analyst_labels_applied", 0)})
+        except Exception as e:  # noqa: BLE001
+            log.exception("retrain failed")
+            _job.update(status="failed", error=str(e))
+        finally:
+            _job["running"] = False
+
+    threading.Thread(target=_go, daemon=True).start()
+    return {"started": True, "corrections": len(db.feedback_labels())}
+
+
 @app.get("/api/export/hotspots.geojson")
 def export_hotspots(labels: Optional[str] = None, persistent: Optional[bool] = None):
     rows = db.query_hotspots(labels=_parse_labels(labels), persistent=persistent, limit=200000)
@@ -163,6 +229,36 @@ def export_hotspots(labels: Optional[str] = None, persistent: Optional[bool] = N
 def export_sources():
     return JSONResponse(_fc(db.get_sources(), lat="lat", lon="lon"),
                         headers={"Content-Disposition": "attachment; filename=persistent_sources.geojson"})
+
+
+def _csv(rows: list[dict], cols: list[str], filename: str) -> PlainTextResponse:
+    import csv
+    import io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore", lineterminator="\n")
+    w.writeheader()
+    for r in rows:
+        w.writerow({c: r.get(c) for c in cols})
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@app.get("/api/export/alerts.csv")
+def export_alerts(min_severity: float = Query(0.0, ge=0, le=100)):
+    """The day's alert list, ready to paste into a shift log."""
+    return _csv(db.get_alerts(None, min_severity, 5000),
+                ["id", "kind", "severity", "alert_date", "site_name", "label", "confidence", "lat", "lon",
+                 "frp", "frp_baseline", "n_days", "title", "detail"], "thermalsentinel_alerts.csv")
+
+
+@app.get("/api/export/registry.csv")
+def export_registry():
+    """The persistent thermal source registry, one row per source."""
+    return _csv(db.get_sources(),
+                ["group_id", "lat", "lon", "label", "confidence", "nearest_site_name", "nearest_site_type",
+                 "dist_industrial_km", "landcover", "n_det", "n_days", "span_days", "night_frac", "frp_mean",
+                 "frp_med", "frp_max", "persistence_score", "first_seen", "last_seen", "n_anomalies", "radius_m"],
+                "persistent_source_registry.csv")
 
 
 def _imagery_links(lat: float, lon: float, day: str) -> dict:

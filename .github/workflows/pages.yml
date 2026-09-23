@@ -19,6 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The demo data is not a committed blob: the real pipeline regenerates it here on
+      # every deploy, so what the public demo shows always matches the code in this commit.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend
+        run: pip install -r requirements.txt
+        working-directory: backend
+      - name: Run pipeline and self-test (fails the deploy if accuracy regresses)
+        run: python scripts/selftest.py
+        working-directory: backend
+      - name: Export static data for the no-backend demo
+        run: python scripts/export_static.py
+        working-directory: backend
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20

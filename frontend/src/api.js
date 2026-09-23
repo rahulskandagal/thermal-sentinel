@@ -26,6 +26,14 @@ async function get(path, params = {}) {
   return r.json()
 }
 
+async function post(path, body) {
+  const r = await fetch(`${BASE}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText)
+  return r.json()
+}
+
 const liveApi = {
   status: () => get('/api/status'),
   stats: () => get('/api/stats'),
@@ -35,16 +43,15 @@ const liveApi = {
   sources: (p) => get('/api/sources', p),
   source: (id) => get(`/api/sources/${id}`),
   sites: (p) => get('/api/sites', p),
-  ingest: async (body) => {
-    const r = await fetch(`${BASE}/api/ingest`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    })
-    if (!r.ok) throw new Error((await r.json()).detail || r.statusText)
-    return r.json()
-  },
+  alerts: (p) => get('/api/alerts', p),
+  feedback: () => get('/api/feedback'),
+  sendFeedback: (body) => post('/api/feedback', body),
+  retrain: () => post('/api/retrain'),
+  ingest: (body) => post('/api/ingest', body),
   exportUrl: (kind, p = {}) => {
     const qs = new URLSearchParams(p).toString()
-    return `${BASE}/api/export/${kind}.geojson${qs ? `?${qs}` : ''}`
+    const ext = kind === 'alerts' || kind === 'registry' ? 'csv' : 'geojson'
+    return `${BASE}/api/export/${kind}.${ext}${qs ? `?${qs}` : ''}`
   },
 }
 

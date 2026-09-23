@@ -48,12 +48,15 @@ export default function FilterPanel({ filters, setFilters, counts, stats }) {
         <label><input type="checkbox" checked={filters.showSites} onChange={(e) => set({ showSites: e.target.checked })} /> OSM industrial infrastructure</label>
       </div>
 
-      <h3>Export (GIS)</h3>
+      <h3>Export</h3>
       <div className="export-row">
         <a className="btn" href={api.exportUrl('hotspots', { labels: [...filters.labels].join(',') })} download>{api.isStatic ? 'Hotspots .json' : 'Hotspots .geojson'}</a>
-        <a className="btn" href={api.exportUrl('sources')} download>Persistent sources .geojson</a>
+        <a className="btn" href={api.exportUrl('sources')} download>Sources .geojson</a>
+        <a className="btn" href={api.exportUrl('registry')} download>Source registry .csv</a>
+        <a className="btn" href={api.exportUrl('alerts')} download>Alerts .csv</a>
       </div>
-      <p className="hint">GeoJSON loads directly into QGIS / ArcGIS / Google Earth. API docs at <code>/docs</code>.</p>
+      <p className="hint">GeoJSON loads straight into QGIS / ArcGIS / Google Earth; the CSVs drop into a shift log or a
+        spreadsheet. API docs at <code>/docs</code>.</p>
     </section>
   )
 }

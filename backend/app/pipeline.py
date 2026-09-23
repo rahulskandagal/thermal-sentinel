@@ -8,9 +8,10 @@ from datetime import date, datetime
 import numpy as np
 import pandas as pd
 
+from . import alerts as alerts_mod
 from . import config, db, demo, firms, osm
 from .classifier import ThermalClassifier
-from .features import add_basic, add_clusters, add_landcover, add_nearest_site, add_persistence
+from .features import add_basic, add_clusters, add_density, add_landcover, add_nearest_site, add_persistence
 
 log = logging.getLogger(__name__)
 
@@ -21,18 +22,39 @@ def get_classifier() -> ThermalClassifier:
     """Load the trained model, or train it from the labelled demo archive on first use."""
     if _clf.model is None and not _clf.load():
         log.info("No saved model – training on demo archive")
-        df, sites = demo.generate()
-        feats = enrich(df, sites, window_days=demo.DEMO_DAYS, landcover_polys=[])
-        _clf.train(feats, feats["true_label"])
-        _clf.save()
-        db.set_meta("model_metrics", _clf.metrics)
+        train_model()
     return _clf
+
+
+def train_model(use_feedback: bool = True) -> dict:
+    """(Re)train on the labelled archive, with any analyst corrections taking precedence.
+
+    An analyst who relabels a source is the best label available for that source, so their
+    verdict overwrites the archive label for every detection in that group before fitting.
+    """
+    df, sites = demo.generate()
+    feats = enrich(df, sites, window_days=demo.DEMO_DAYS, landcover_polys=[])
+    labels = feats["true_label"].astype(str)
+    n_override = 0
+    if use_feedback:
+        corrections = db.feedback_labels()
+        if corrections:
+            mask = feats["group_id"].isin(corrections)
+            labels = labels.mask(mask, feats["group_id"].map(corrections))
+            n_override = int(mask.sum())
+            log.info("Applying %d analyst corrections over %d sources", n_override, len(corrections))
+    _clf.train(feats, labels)
+    _clf.metrics["analyst_labels_applied"] = n_override
+    _clf.save()
+    db.set_meta("model_metrics", _clf.metrics)
+    return _clf.metrics
 
 
 def enrich(df: pd.DataFrame, sites: list[dict], window_days: int, landcover_polys) -> pd.DataFrame:
     df = add_basic(df)
     df = add_clusters(df)
     df = add_persistence(df, window_days)
+    df = add_density(df)
     df = add_nearest_site(df, sites)
     df = add_landcover(df, landcover_polys)
     return df
@@ -52,9 +74,9 @@ def build_sources(h: pd.DataFrame) -> pd.DataFrame:
     p = h[h["is_persistent"] == 1]
     if len(p) == 0:
         return pd.DataFrame(columns=["group_id", "lat", "lon", "n_det", "n_days", "span_days", "night_frac", "frp_mean",
-                                     "frp_max", "persistence_score", "label", "confidence", "nearest_site_name",
+                                     "frp_med", "frp_max", "persistence_score", "label", "confidence", "nearest_site_name",
                                      "nearest_site_type", "dist_industrial_km", "landcover", "first_seen", "last_seen",
-                                     "n_anomalies", "radius_m"])
+                                     "n_anomalies", "max_anomaly_severity", "radius_m"])
     rows = []
     for gid, g in p.groupby("group_id"):
         lat, lon = g["latitude"].mean(), g["longitude"].mean()
@@ -64,13 +86,16 @@ def build_sources(h: pd.DataFrame) -> pd.DataFrame:
             "group_id": gid, "lat": round(lat, 5), "lon": round(lon, 5),
             "n_det": int(len(g)), "n_days": int(g["n_days"].iloc[0]), "span_days": float(g["span_days"].iloc[0]),
             "night_frac": round(float(g["night_frac"].iloc[0]), 3), "frp_mean": round(float(g["frp"].mean()), 2),
+            "frp_med": round(float(g["frp"].median()), 2),
             "frp_max": round(float(g["frp"].max()), 2), "persistence_score": float(g["persistence_score"].iloc[0]),
             "label": label, "confidence": round(float(g.loc[g["label"] == label, "confidence"].mean()), 3),
             "nearest_site_name": g["nearest_site_name"].iloc[0], "nearest_site_type": g["nearest_site_type"].iloc[0],
             "dist_industrial_km": float(g["dist_industrial_km"].min()),
             "landcover": g["landcover"].mode().iloc[0],
             "first_seen": str(g["acq_date"].min()), "last_seen": str(g["acq_date"].max()),
-            "n_anomalies": int(g["is_anomaly"].sum()), "radius_m": int(max(200, np.percentile(d, 90))),
+            "n_anomalies": int(g["is_anomaly"].sum()),
+            "max_anomaly_severity": round(float(g["anomaly_severity"].max()) if "anomaly_severity" in g else 0.0, 1),
+            "radius_m": int(max(200, np.percentile(d, 90))),
         })
     return pd.DataFrame(rows).sort_values("persistence_score", ascending=False).reset_index(drop=True)
 
@@ -116,13 +141,15 @@ def run(source: str = "demo", bbox=None, days: int | None = None, end: date | No
         df["true_label"] = None
 
     sources = build_sources(df)
+    alerts = alerts_mod.build(df, sources)
     meta = {
         "source": source, "bbox": list(bbox), "days": days, "n_hotspots": int(len(df)), "n_sites": len(sites),
         "n_persistent_sources": int(len(sources)), "n_landcover_polys": len(landcover_polys),
+        "n_alerts": int(len(alerts)), "alerts": alerts_mod.summarise(alerts),
         "run_at": datetime.utcnow().isoformat() + "Z", "seconds": round(time.time() - t0, 1),
         "date_from": str(df["acq_date"].min()), "date_to": str(df["acq_date"].max()),
     }
-    db.save_run(df, sites, sources, meta)
+    db.save_run(df, sites, sources, meta, alerts_df=alerts)
     if clf.metrics:
         db.set_meta("model_metrics", clf.metrics)
     log.info("Pipeline done: %s", meta)

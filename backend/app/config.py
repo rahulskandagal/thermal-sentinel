@@ -31,3 +31,15 @@ PERSISTENT_MIN_DAYS = 8          # distinct detection days in the window
 PERSISTENT_MIN_SPAN_DAYS = 14    # first->last detection span
 INDUSTRIAL_RADIUS_M = 1500.0     # hotspot is "at" an industrial site within this
 MINING_RADIUS_M = 2500.0
+EVAL_BLOCK_DEG = 3.0             # ~330 km blocks, held out whole when scoring the model
+
+# --- Anomaly detection (FRP far above a source's own robust baseline) -----------
+ANOMALY_ROBUST_Z = 4.0           # (frp - median) / (1.4826 * MAD) for that source
+ANOMALY_RATIO = 2.5              # frp / median for that source
+ANOMALY_MIN_DAYS = 6             # need this much history before a baseline means anything
+ANOMALY_MIN_FRP = 8.0            # ignore spikes that are still small in absolute terms
+
+# --- Alerting -------------------------------------------------------------------
+ALERT_SILENT_DAYS = 10           # a persistent source quiet this long has "gone dark"
+ALERT_NEW_SOURCE_DAYS = 21       # first seen this recently = newly appeared source
+UNREGISTERED_MIN_DIST_KM = 3.0   # persistent industrial heat this far from any mapped site

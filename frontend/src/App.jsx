@@ -5,6 +5,11 @@ import FilterPanel from './components/FilterPanel.jsx'
 import StatsPanel from './components/StatsPanel.jsx'
 import DetailPanel from './components/DetailPanel.jsx'
 import IngestDialog from './components/IngestDialog.jsx'
+import AlertsPanel from './components/AlertsPanel.jsx'
+import ModelPanel from './components/ModelPanel.jsx'
+import TimeSlider from './components/TimeSlider.jsx'
+
+const TABS = [['overview', 'Overview'], ['alerts', 'Alerts'], ['filters', 'Filters'], ['model', 'Model']]
 
 const DEFAULT_FILTERS = {
   labels: new Set(LABEL_KEYS),
@@ -26,6 +31,9 @@ export default function App() {
   const [error, setError] = useState(null)
   const [showIngest, setShowIngest] = useState(false)
   const [flyTo, setFlyTo] = useState(null)
+  const [tab, setTab] = useState('overview')
+  const [alerts, setAlerts] = useState(null)
+  const [model, setModel] = useState(null)
   const mapRef = useRef(null)
   // Deep links: ?lat=22.35&lng=70.05&z=12&source=c12  (or &hotspot=h123)
   const urlInit = useRef(new URLSearchParams(window.location.search))
@@ -59,11 +67,15 @@ export default function App() {
     if (!status?.has_data || status.job.running) return
     let alive = true
     setLoading(true)
-    Promise.all([api.stats(), api.sites()])
-      .then(([st, si]) => {
+    // Alerts and model metrics are extras: a deployment serving older data without them
+    // should still show the map, so their failures never reject the batch.
+    Promise.all([api.stats(), api.sites(), api.alerts({}).catch(() => ({ alerts: [] })), api.model().catch(() => null)])
+      .then(([st, si, al, md]) => {
         if (!alive) return
         setStats(st)
         setSites(si)
+        setAlerts(al.alerts || [])
+        setModel(md)
         setFilters((f) => ({ ...f, dateFrom: f.dateFrom || st.totals.date_from, dateTo: f.dateTo || st.totals.date_to }))
       })
       .catch((e) => setError(String(e.message || e)))
@@ -106,6 +118,7 @@ export default function App() {
     const q = urlInit.current
     if (!q) return
     urlInit.current = null
+    if (TABS.some(([k]) => k === q.get('tab'))) setTab(q.get('tab'))
     const lat = parseFloat(q.get('lat')), lng = parseFloat(q.get('lng')), z = parseInt(q.get('z') || '11', 10)
     if (!Number.isNaN(lat) && !Number.isNaN(lng)) setFlyTo({ lat, lng, zoom: z, t: Date.now() })
     if (q.get('source')) setSelected({ kind: 'source', id: q.get('source') })
@@ -172,8 +185,20 @@ export default function App() {
       </header>
 
       <aside className="sidebar">
-        <StatsPanel stats={stats} onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />
-        <FilterPanel filters={filters} setFilters={setFilters} counts={counts} stats={stats} />
+        <nav className="tabs">
+          {TABS.map(([k, name]) => (
+            <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
+              {name}{k === 'alerts' && alerts?.length ? <i className="tab-badge">{alerts.length}</i> : null}
+            </button>
+          ))}
+        </nav>
+        {tab === 'overview' && <StatsPanel stats={stats} onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />}
+        {tab === 'alerts' && (
+          <AlertsPanel alerts={alerts} filters={filters} setFilters={setFilters}
+            onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />
+        )}
+        {tab === 'filters' && <FilterPanel filters={filters} setFilters={setFilters} counts={counts} stats={stats} />}
+        {tab === 'model' && <ModelPanel model={model} />}
       </aside>
 
       <main className="map-wrap">
@@ -193,6 +218,7 @@ export default function App() {
             {hotspots.features.length.toLocaleString()} detections · {sources?.features.length ?? 0} persistent sources · {sites?.features.length ?? 0} OSM industrial sites
           </div>
         )}
+        {stats && <TimeSlider stats={stats} filters={filters} setFilters={setFilters} />}
       </main>
 
       {detail && <DetailPanel detail={detail} onClose={() => setSelected(null)} />}

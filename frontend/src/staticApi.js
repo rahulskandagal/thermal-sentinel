@@ -45,12 +45,38 @@ async function timeseries(groupId) {
   return (ts[groupId] || []).map(([acq_date, n, frp_sum, frp_max, n_night]) => ({ acq_date, n, frp_sum, frp_max, n_night }))
 }
 
+// The static demo has no database, so analyst verdicts are queued in the browser and can be
+// replayed against the live /api/feedback endpoint after cloning the repo.
+const FB_KEY = 'ts.feedback'
+const readFeedback = () => { try { return JSON.parse(localStorage.getItem(FB_KEY) || '[]') } catch { return [] } }
+const writeFeedback = (rows) => { try { localStorage.setItem(FB_KEY, JSON.stringify(rows)) } catch { /* private mode */ } }
+
 export const staticApi = {
   isStatic: true,
   status: () => load('status.json'),
   stats: () => load('stats.json'),
   model: () => load('model.json'),
   sites: () => load('sites.geojson'),
+  async alerts(p = {}) {
+    const a = await load('alerts.json')
+    const kinds = p.kinds ? new Set(String(p.kinds).split(',')) : null
+    const min = +(p.min_severity || 0)
+    return { ...a, alerts: a.alerts.filter((x) => (!kinds || kinds.has(x.kind)) && x.severity >= min) }
+  },
+  async feedback() {
+    const rows = readFeedback()
+    const pending = new Set(rows.filter((r) => r.verdict === 'correct').map((r) => r.group_id))
+    return { count: rows.length, pending_corrections: pending.size, feedback: rows }
+  },
+  async sendFeedback(body) {
+    const rows = readFeedback()
+    const row = { id: rows.length + 1, ...body, analyst: body.analyst || 'analyst', created_at: new Date().toISOString() }
+    writeFeedback([row, ...rows])
+    return row
+  },
+  retrain: async () => {
+    throw new Error('Retraining needs the Python backend. Your verdicts are saved in this browser — clone the repo and POST them to /api/feedback, then /api/retrain.')
+  },
   async hotspots(p = {}) {
     const rows = await hotspotRows()
     const labels = p.labels ? new Set(String(p.labels).split(',')) : null
@@ -87,5 +113,5 @@ export const staticApi = {
     return { ...f.properties, lat, lon, timeseries: await timeseries(groupId), links: links(lat, lon, f.properties.last_seen) }
   },
   ingest: async () => { throw new Error('Pipeline runs need the Python backend — clone the repo to run live FIRMS ingestion.') },
-  exportUrl: (kind) => `${BASE}data/${kind === 'sources' ? 'sources.geojson' : 'hotspots.json'}`,
+  exportUrl: (kind) => `${BASE}data/${{ sources: 'sources.geojson', alerts: 'alerts.csv', registry: 'registry.csv' }[kind] || 'hotspots.json'}`,
 }

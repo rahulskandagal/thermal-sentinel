@@ -144,10 +144,13 @@ def _lognormal(rng, mean, cv, size=None):
 
 
 def _point_source(rng, rows, name, lat, lon, p_day, dets, night_frac, frp_mean, frp_cv, label, landcover,
-                  jitter=0.004, incident_day: date | None = None, season=None):
+                  jitter=0.004, incident_day: date | None = None, season=None,
+                  day_from: date | None = None, day_to: date | None = None):
     for i in range(DEMO_DAYS):
         day = DEMO_START + timedelta(days=i)
         if season and day.month not in season:
+            continue
+        if (day_from and day < day_from) or (day_to and day > day_to):
             continue
         if rng.random() > p_day:
             continue
@@ -174,6 +177,19 @@ def generate(seed: int = 7) -> tuple[pd.DataFrame, list[dict]]:
                       "tags": {"landuse": "industrial", "name": name}})
         _point_source(rng, rows, name, lat, lon, p, dets, nf, frp, cv, "INDUSTRIAL_FIRE", "industrial",
                       incident_day=incidents.get(name))
+
+    # A unit taken down for maintenance: active for six weeks, then silent. This is what a
+    # "went dark" alert is for — and the reason a registry needs last-seen, not just a count.
+    sites.append({"id": "site_shut", "lat": 19.070, "lon": 72.880, "name": "Trombay Thermal Power (unit outage)",
+                  "site_type": "power_plant", "source": "osm", "tags": {"landuse": "industrial"}})
+    _point_source(rng, rows, "Trombay Thermal Power (unit outage)", 19.070, 72.880, 0.85, (2, 5), 0.5, 14, 0.5,
+                  "INDUSTRIAL_FIRE", "industrial", day_to=date(2025, 4, 14))
+
+    # A sponge-iron unit commissioned late in the window and absent from OSM: the
+    # "new source" and "unregistered" alerts should both find it.
+    for j in range(2):
+        _point_source(rng, rows, "Angul new sponge-iron unit", 20.960 + j * 0.01, 85.210 + j * 0.01, 0.8, (2, 4),
+                      0.5, 13, 0.55, "INDUSTRIAL_FIRE", "industrial", jitter=0.002, day_from=date(2025, 5, 12))
 
     for k, (name, lat, lon, n_stacks) in enumerate(FLARE_FIELDS):
         for j in range(n_stacks):
@@ -214,6 +230,20 @@ def generate(seed: int = 7) -> tuple[pd.DataFrame, list[dict]]:
                     lc = "cropland" if rng.random() > 0.07 else "unknown"
                     rows.append(_row(rng, flat, flon, d0 + timedelta(days=dd), rng.random() < 0.08,
                                      _lognormal(rng, 7, 0.7), "AGRICULTURAL_BURN", lc, name))
+
+    # Genuinely ambiguous cases, on purpose: stubble fires in the fields that surround a
+    # plant. Distance to industry says industrial, land cover and duration say agriculture.
+    # Without these the demo archive is separable and any accuracy number is meaningless.
+    for name, lat, lon in [("Panipat fields around the refinery", 29.425, 76.930),
+                           ("Bathinda fields around the refinery", 30.258, 74.921),
+                           ("Kanpur fields between the kilns", 26.55, 80.40)]:
+        for _ in range(120):
+            flat = lat + rng.normal(0, 0.018)
+            flon = lon + rng.normal(0, 0.018)
+            d0 = agri_days[int(rng.integers(0, len(agri_days)))]
+            for _ in range(int(rng.integers(1, 3))):
+                rows.append(_row(rng, flat, flon, d0, rng.random() < 0.12, _lognormal(rng, 9, 0.8),
+                                 "AGRICULTURAL_BURN", "cropland" if rng.random() > 0.25 else "unknown", name))
 
     # Wildfires: multi-day spreading events
     for name, lat, lon, spread, n_events, lc in FOREST_REGIONS:
