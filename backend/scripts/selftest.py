@@ -48,6 +48,27 @@ print("agreement vs archive truth", s["label_accuracy_vs_truth"], "| sources", s
 print("alerts", s["n_alerts"], s["alerts_by_kind"])
 for a in db.get_alerts(limit=6):
     print(f"  [{a['severity']:5.1f}] {a['kind']:12s} {a['title']}")
+
+# --- 7-day forecast ------------------------------------------------------------
+fc = db.get_meta("forecast_metrics") or {}
+print(f"\nforecast horizon    {fc.get('horizon_days')} days   "
+      f"({fc.get('n_source_rows', 0):,} source-days, {fc.get('n_grid_rows', 0):,} cell-days)")
+for kind in ("incident", "outbreak"):
+    m = fc.get(kind) or {}
+    if not m.get("trained"):
+        print(f"{kind:9s}           not trained: {m.get('reason')}")
+        continue
+    t = m["test"]
+    print(f"{kind:9s} test      AUC {t.get('auc')}  PR-AUC {t.get('pr_auc')}  "
+          f"base rate {t['base_rate']:.3f} -> precision@10% {t.get('precision_at_10pct')} "
+          f"({t.get('lift_at_10pct')}x lift)  [{m['scheme']}]")
+    print(f"{'':9s} drivers   {[f['feature'] for f in m.get('feature_importance', [])[:5]]}")
+risk = db.get_risk("source", limit=5)
+for r in risk:
+    print(f"  risk {r['risk']:.2f}  {r.get('site_name') or r['group_id']}  <- {(r.get('drivers') or [''])[0]}")
+grid = db.get_risk("grid", limit=3)
+for r in grid:
+    print(f"  risk {r['risk']:.2f}  area @ {r['lat']:.2f}, {r['lon']:.2f}  <- {(r.get('drivers') or [''])[0]}")
 print("top sources:", [(t["nearest_site_name"], t["label"], t["n_days"]) for t in s["top_sources"][:5]])
 
 # --- analyst feedback loop -----------------------------------------------------
@@ -79,6 +100,14 @@ checks = [
     ("persistent sources found", s["n_persistent_sources"] > 0),
     ("alerts generated", s["n_alerts"] > 0),
     ("every alert kind present", set(s["alerts_by_kind"]) >= {"FRP_ANOMALY", "NEW_SOURCE", "WENT_DARK", "UNREGISTERED"}),
+    ("both forecasters trained", bool((fc.get("incident") or {}).get("trained")) and bool((fc.get("outbreak") or {}).get("trained"))),
+    # A forecast that cannot beat the base rate is worse than no forecast, because it
+    # still costs an operator the time to read it.
+    ("incident forecast beats chance (AUC >= 0.65)", ((fc.get("incident") or {}).get("test", {}).get("auc") or 0) >= 0.65),
+    ("outbreak forecast beats chance (AUC >= 0.70)", ((fc.get("outbreak") or {}).get("test", {}).get("auc") or 0) >= 0.70),
+    ("ranking by risk pays off (lift >= 1.5x on both)",
+     min(((fc.get(k) or {}).get("test", {}).get("lift_at_10pct") or 0) for k in ("incident", "outbreak")) >= 1.5),
+    ("risk scores produced", len(risk) > 0 and len(grid) > 0),
 ]
 print()
 bad = 0

@@ -80,6 +80,9 @@ dump("sites.geojson", _fc(db.get_sites(), lat="lat", lon="lon"))
 dump("stats.json", db.stats())
 dump("model.json", db.get_meta("model_metrics") or {})
 dump("alerts.json", {"kinds": alerts.KINDS, "count": len(alert_rows), "alerts": alert_rows})
+src_risk, grid_risk = db.get_risk("source", limit=2000), db.get_risk("grid", limit=20000)
+dump("forecast.json", {"metrics": db.get_meta("forecast_metrics") or {}, "count": len(src_risk),
+                       "sources": src_risk, "grid": grid_risk})
 dump_csv("alerts.csv", alert_rows, ALERT_CSV_COLS)
 dump_csv("registry.csv", srcs, REGISTRY_CSV_COLS)
 dump("status.json", {"job": {"running": False, "status": "idle", "error": None, "meta": None},

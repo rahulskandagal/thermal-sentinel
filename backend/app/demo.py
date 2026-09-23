@@ -152,6 +152,29 @@ def _lognormal(rng, mean, cv, size=None):
     return rng.lognormal(mu, sigma, size)
 
 
+PRECURSOR_DAYS = 6       # length of the upset period simulated before an incident
+
+
+def _incident_boost(rng, day: date, incident_day: date | None) -> float:
+    """Industrial incidents rarely arrive out of a clear sky.
+
+    Plants run into upset conditions first — unstable process heat, extra flaring, venting —
+    for days before something actually fails. That is simulated here as a ramp of elevated and
+    more erratic FRP over the week leading up to the incident, which is what makes forecasting
+    a real task rather than guessing a random date. It is a modelling assumption of the demo
+    archive, stated openly; on live FIRMS data the same features are computed from real FRP.
+    """
+    if not incident_day:
+        return 1.0
+    lead = (incident_day - day).days
+    if lead == 0:
+        return 8.0
+    if 0 < lead <= PRECURSOR_DAYS:
+        ramp = 1.0 + 1.6 * (1.0 - (lead - 1) / PRECURSOR_DAYS)      # ~1.1x a week out, ~2.6x the day before
+        return float(ramp * rng.lognormal(0.0, 0.35))               # and noticeably more erratic
+    return 1.0
+
+
 def _point_source(rng, rows, name, lat, lon, p_day, dets, night_frac, frp_mean, frp_cv, label, landcover,
                   jitter=0.004, incident_day: date | None = None, season=None,
                   day_from: date | None = None, day_to: date | None = None):
@@ -164,7 +187,7 @@ def _point_source(rng, rows, name, lat, lon, p_day, dets, night_frac, frp_mean, 
         if rng.random() > p_day:
             continue
         n = int(rng.integers(dets[0], dets[1] + 1))
-        boost = 8.0 if incident_day and day == incident_day else 1.0
+        boost = _incident_boost(rng, day, incident_day)
         for _ in range(n):
             night = rng.random() < night_frac
             lc = landcover if rng.random() > 0.08 else str(rng.choice(["unknown", "built"]))
@@ -179,8 +202,18 @@ def generate(seed: int = 7) -> tuple[pd.DataFrame, list[dict]]:
     rows: list[dict] = []
     sites: list[dict] = []
 
-    incidents = {"Jamnagar Refinery Complex": date(2025, 4, 21), "Bhilai Steel Plant": date(2025, 5, 9),
-                 "Hazira Petrochemical Complex": date(2025, 3, 28)}
+    # Incidents spread across the window and across plant types, each preceded by the upset
+    # ramp in _incident_boost. Enough of them, early and late, that a forecaster trained on the
+    # first weeks can be tested honestly on the last ones.
+    incidents = {
+        "Hazira Petrochemical Complex": date(2025, 3, 12), "Rourkela Steel Plant": date(2025, 3, 19),
+        "Mathura Refinery": date(2025, 3, 26), "Korba Super Thermal Power": date(2025, 4, 2),
+        "Durgapur Steel Plant": date(2025, 4, 8), "Paradip Refinery": date(2025, 4, 15),
+        "Jamnagar Refinery Complex": date(2025, 4, 21), "NALCO Angul Smelter": date(2025, 4, 27),
+        "Visakhapatnam Steel Plant": date(2025, 5, 3), "Bhilai Steel Plant": date(2025, 5, 9),
+        "Panipat Refinery & Petrochemical": date(2025, 5, 14), "MRPL Mangalore": date(2025, 5, 18),
+        "Tata Steel Jamshedpur": date(2025, 5, 22), "Vedanta Jharsuguda Smelter": date(2025, 5, 26),
+    }
     for k, (name, lat, lon, st, p, dets, nf, frp, cv) in enumerate(SITES):
         sites.append({"id": f"site{k}", "lat": lat, "lon": lon, "name": name, "site_type": st, "source": "osm",
                       "tags": {"landuse": "industrial", "name": name}})

@@ -165,6 +165,21 @@ def alerts(kinds: Optional[str] = Query(None, description="FRP_ANOMALY, NEW_SOUR
     return {"kinds": alerts_mod.KINDS, "count": len(rows), "alerts": rows}
 
 
+# ------------------------------------------------------------------ forecast
+
+@app.get("/api/forecast")
+def forecast(min_risk: float = Query(0.0, ge=0, le=1), limit: int = Query(300, le=2000)):
+    """Which persistent sources are most likely to spike in the next 7 days, and why."""
+    rows = db.get_risk("source", min_risk, limit)
+    return {"metrics": db.get_meta("forecast_metrics") or {}, "count": len(rows), "sources": rows}
+
+
+@app.get("/api/forecast/grid")
+def forecast_grid(min_risk: float = Query(0.0, ge=0, le=1), limit: int = Query(2000, le=20000)):
+    """Areas likely to see a burst of new fires in the next 7 days (GeoJSON cell centroids)."""
+    return JSONResponse(_fc(db.get_risk("grid", min_risk, limit), lat="lat", lon="lon"))
+
+
 # ------------------------------------------------------------------ analyst feedback loop
 
 class FeedbackRequest(BaseModel):

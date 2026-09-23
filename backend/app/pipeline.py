@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from . import alerts as alerts_mod
-from . import config, db, demo, firms, osm
+from . import config, db, demo, firms, forecast, osm
 from .classifier import ThermalClassifier
 from .features import add_basic, add_clusters, add_density, add_landcover, add_nearest_site, add_persistence
 
@@ -142,14 +142,19 @@ def run(source: str = "demo", bbox=None, days: int | None = None, end: date | No
 
     sources = build_sources(df)
     alerts = alerts_mod.build(df, sources)
+    source_risk, grid_risk, fc_metrics = forecast.run(df, sources)
     meta = {
         "source": source, "bbox": list(bbox), "days": days, "n_hotspots": int(len(df)), "n_sites": len(sites),
         "n_persistent_sources": int(len(sources)), "n_landcover_polys": len(landcover_polys),
         "n_alerts": int(len(alerts)), "alerts": alerts_mod.summarise(alerts),
+        "forecast": {"horizon_days": fc_metrics["horizon_days"], "n_sources_scored": int(len(source_risk)),
+                     "n_cells_scored": int(len(grid_risk)),
+                     "high_risk_sources": int((source_risk["risk"] >= 0.5).sum()) if len(source_risk) else 0},
         "run_at": datetime.utcnow().isoformat() + "Z", "seconds": round(time.time() - t0, 1),
         "date_from": str(df["acq_date"].min()), "date_to": str(df["acq_date"].max()),
     }
-    db.save_run(df, sites, sources, meta, alerts_df=alerts)
+    db.save_run(df, sites, sources, meta, alerts_df=alerts, source_risk=source_risk, grid_risk=grid_risk)
+    db.set_meta("forecast_metrics", fc_metrics)
     if clf.metrics:
         db.set_meta("model_metrics", clf.metrics)
     log.info("Pipeline done: %s", meta)

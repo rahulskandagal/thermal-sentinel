@@ -51,7 +51,8 @@ def init():
 
 
 def save_run(hotspots: pd.DataFrame, sites: list[dict], sources: pd.DataFrame, meta: dict,
-             alerts_df: pd.DataFrame | None = None):
+             alerts_df: pd.DataFrame | None = None, source_risk: pd.DataFrame | None = None,
+             grid_risk: pd.DataFrame | None = None):
     h = hotspots.copy()
     for c in HOTSPOT_COLS:
         if c not in h.columns:
@@ -69,6 +70,12 @@ def save_run(hotspots: pd.DataFrame, sites: list[dict], sources: pd.DataFrame, m
         sources.to_sql("sources", con, if_exists="replace", index=False)
         a = alerts_df if alerts_df is not None else pd.DataFrame(columns=["id", "kind", "severity"])
         a.to_sql("alerts", con, if_exists="replace", index=False)
+        for name, frame in (("source_risk", source_risk), ("grid_risk", grid_risk)):
+            f = frame if frame is not None else pd.DataFrame(columns=["risk"])
+            f = f.copy()
+            if "drivers" in f.columns:
+                f["drivers"] = f["drivers"].apply(lambda r: json.dumps(list(r) if isinstance(r, (list, tuple)) else []))
+            f.to_sql(name, con, if_exists="replace", index=False)
         con.executescript("""
         CREATE INDEX IF NOT EXISTS idx_h_ll ON hotspots(latitude, longitude);
         CREATE INDEX IF NOT EXISTS idx_h_date ON hotspots(acq_date);
@@ -101,8 +108,9 @@ def _rows(cur) -> list[dict]:
     out = []
     for r in cur.fetchall():
         d = dict(r)
-        if "reasons" in d and isinstance(d["reasons"], str):
-            d["reasons"] = json.loads(d["reasons"])
+        for col in ("reasons", "drivers"):
+            if col in d and isinstance(d[col], str):
+                d[col] = json.loads(d[col])
         if "tags" in d and isinstance(d["tags"], str):
             d["tags"] = json.loads(d["tags"])
         out.append(d)
@@ -173,6 +181,15 @@ def get_alerts(kinds=None, min_severity: float = 0.0, limit: int = 500) -> list[
         sql += " ORDER BY severity DESC LIMIT ?"
         args.append(int(limit))
         return _rows(con.execute(sql, args))
+
+
+def get_risk(kind: str = "source", min_risk: float = 0.0, limit: int = 500) -> list[dict]:
+    table = "source_risk" if kind == "source" else "grid_risk"
+    with connect() as con:
+        if not con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+            return []
+        return _rows(con.execute(f"SELECT * FROM {table} WHERE risk >= ? ORDER BY risk DESC LIMIT ?",
+                                 (min_risk, int(limit))))
 
 
 # ------------------------------------------------------------------ analyst feedback
