@@ -35,9 +35,8 @@ function chrome(s, heading, size = 26) {
   s.addText(TEAM, { x: 0.2, y: 0.12, w: 1.15, h: 0.62, fontFace: SANS, fontSize: 11, color: NAVY, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
   s.addText(heading, { x: 1.45, y: 0.1, w: 6.4, h: 0.7, fontFace: SERIF, fontSize: size, bold: true, color: NAVY, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
   s.addImage({ data: LOGO, x: 7.95, y: 0.05, w: 1.85, h: 0.87 })
-  s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 5.3, w: 10, h: 0.325, fill: { color: FOOT }, line: { color: FOOT, width: 0 } })
-  s.addText('@SIH Idea submission- Template', { x: 0, y: 5.3, w: 10, h: 0.325, fontFace: SANS, fontSize: 9, color: WHITE, align: 'center', valign: 'middle', margin: 0, isTextBox: true })
-  s.addText(String(n), { x: 8.8, y: 5.3, w: 0.9, h: 0.325, fontFace: SANS, fontSize: 9, bold: true, color: WHITE, align: 'right', valign: 'middle', margin: 0, isTextBox: true })
+  // page number only, no template band at the bottom
+  s.addText(String(n), { x: 9.0, y: 5.26, w: 0.7, h: 0.28, fontFace: SANS, fontSize: 10, bold: true, color: MUTED, align: 'right', valign: 'middle', margin: 0, isTextBox: true })
 }
 const T = (s, t, x, y, w, h, o = {}) => s.addText(t, { x, y, w, h, fontFace: o.font || SANS, fontSize: o.size || 9, color: o.color || INK, bold: !!o.bold, italic: !!o.italic, underline: !!o.underline, align: o.align || 'left', valign: o.valign || 'top', margin: 0, isTextBox: true })
 const R = (s, x, y, w, h, fill, o = {}) => s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, fill: { color: fill }, line: { color: o.line || fill, width: o.lw ?? 0 }, rectRadius: o.r ?? 0.08, shadow: o.shadow ? { type: 'outer', color: '000000', blur: 4, offset: 2, angle: 45, opacity: 0.35 } : undefined })
@@ -71,6 +70,7 @@ const fmt = (v) => v.toLocaleString('en-IN')
   rows.forEach(([k, v], i) => { runs.push({ text: k, options: { bullet: true, bold: true } }); runs.push({ text: v, options: { bold: true, breakLine: i < rows.length - 1 } }) })
   s.addText(runs.map((r) => ({ ...r, options: { ...r.options, paraSpaceAfter: 10 } })), { x: 0.3, y: 1.35, w: 5.6, h: 3.7, fontFace: SERIF, fontSize: 13.5, color: BLACK, valign: 'top', margin: 0, isTextBox: true })
   T(s, 'Organisation: National Technical Research Organisation (NTRO)', 0.3, 4.8, 5.6, 0.3, { font: SERIF, size: 11, italic: true, color: MUTED })
+  T(s, '1', 9.0, 5.26, 0.7, 0.28, { size: 10, bold: true, color: MUTED, align: 'right', valign: 'middle' })
 }
 
 // ================================================================== 2. PROPOSED SOLUTION
@@ -119,8 +119,8 @@ const fmt = (v) => v.toLocaleString('en-IN')
     R(s, 8.68, y, 1.1, 0.5, GRNP, { r: 0.1, shadow: true })
     T(s, b, 8.72, y, 1.02, 0.5, { size: 7, bold: true, color: WHITE, align: 'center', valign: 'middle', font: SERIF })
   })
-  s.addImage({ data: DASH, x: 7.0, y: 4.15, w: 2.78, h: 0.95, sizing: { type: 'crop', x: 0, y: 0.15, w: 2.78, h: 0.95 } })
-  T(s, 'Prototype GIS dashboard', 7.0, 5.1, 2.78, 0.16, { size: 6.5, italic: true, color: MUTED, align: 'right' })
+  s.addImage({ data: DASH, x: 7.0, y: 4.15, w: 2.78, h: 1.0, sizing: { type: 'crop', x: 0, y: 0.12, w: 2.78, h: 1.0 } })
+  T(s, 'Prototype GIS dashboard', 7.0, 5.18, 2.78, 0.18, { size: 6.5, italic: true, color: MUTED, align: 'right' })
 }
 
 // ================================================================== 3. TECHNICAL APPROACH
