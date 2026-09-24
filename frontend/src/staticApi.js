@@ -63,6 +63,7 @@ export const staticApi = {
     const min = +(p.min_severity || 0)
     return { ...a, alerts: a.alerts.filter((x) => (!kinds || kinds.has(x.kind)) && x.severity >= min) }
   },
+  forecast: () => load('forecast.json'),
   async feedback() {
     const rows = readFeedback()
     const pending = new Set(rows.filter((r) => r.verdict === 'correct').map((r) => r.group_id))

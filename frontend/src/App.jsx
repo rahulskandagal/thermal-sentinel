@@ -8,8 +8,10 @@ import IngestDialog from './components/IngestDialog.jsx'
 import AlertsPanel from './components/AlertsPanel.jsx'
 import ModelPanel from './components/ModelPanel.jsx'
 import TimeSlider from './components/TimeSlider.jsx'
+import ForecastPanel from './components/ForecastPanel.jsx'
 
-const TABS = [['overview', 'Overview'], ['alerts', 'Alerts'], ['filters', 'Filters'], ['model', 'Model']]
+const TABS = [['overview', 'Overview'], ['alerts', 'Alerts'], ['forecast', 'Forecast'],
+  ['filters', 'Filters'], ['model', 'Model']]
 
 const DEFAULT_FILTERS = {
   labels: new Set(LABEL_KEYS),
@@ -34,6 +36,8 @@ export default function App() {
   const [tab, setTab] = useState('overview')
   const [alerts, setAlerts] = useState(null)
   const [model, setModel] = useState(null)
+  const [forecast, setForecast] = useState(null)
+  const [showRisk, setShowRisk] = useState(false)
   const mapRef = useRef(null)
   // Deep links: ?lat=22.35&lng=70.05&z=12&source=c12  (or &hotspot=h123)
   const urlInit = useRef(new URLSearchParams(window.location.search))
@@ -69,13 +73,15 @@ export default function App() {
     setLoading(true)
     // Alerts and model metrics are extras: a deployment serving older data without them
     // should still show the map, so their failures never reject the batch.
-    Promise.all([api.stats(), api.sites(), api.alerts({}).catch(() => ({ alerts: [] })), api.model().catch(() => null)])
-      .then(([st, si, al, md]) => {
+    Promise.all([api.stats(), api.sites(), api.alerts({}).catch(() => ({ alerts: [] })),
+      api.model().catch(() => null), api.forecast({}).catch(() => null)])
+      .then(([st, si, al, md, fc]) => {
         if (!alive) return
         setStats(st)
         setSites(si)
         setAlerts(al.alerts || [])
         setModel(md)
+        setForecast(fc)
         setFilters((f) => ({ ...f, dateFrom: f.dateFrom || st.totals.date_from, dateTo: f.dateTo || st.totals.date_to }))
       })
       .catch((e) => setError(String(e.message || e)))
@@ -197,6 +203,10 @@ export default function App() {
           <AlertsPanel alerts={alerts} stats={stats} filters={filters} setFilters={setFilters}
             onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />
         )}
+        {tab === 'forecast' && (
+          <ForecastPanel forecast={forecast} showRisk={showRisk} setShowRisk={setShowRisk}
+            onSelectSource={(gid, lat, lon) => onSelect('source', gid, { lat, lng: lon })} />
+        )}
         {tab === 'filters' && <FilterPanel filters={filters} setFilters={setFilters} counts={counts} stats={stats} />}
         {tab === 'model' && <ModelPanel model={model} />}
       </aside>
@@ -207,6 +217,8 @@ export default function App() {
           hotspots={filters.showHotspots ? hotspots : null}
           sources={filters.showSources ? sources : null}
           sites={filters.showSites ? sites : null}
+          riskCells={showRisk ? forecast?.grid : null}
+          riskHorizon={forecast?.grid?.[0]?.horizon_to}
           selected={selected}
           onSelect={onSelect}
           flyTo={flyTo}

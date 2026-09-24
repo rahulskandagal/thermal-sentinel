@@ -70,6 +70,33 @@ function SourceLayer({ data, selected, onSelect }) {
   return null
 }
 
+/** Next-7-day outbreak risk as a heat grid. Drawn beneath everything else on purpose:
+ *  it is a forecast, not an observation, and must not be mistaken for one. */
+function RiskLayer({ cells, horizonTo }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!cells?.length) return
+    const group = L.layerGroup()
+    for (const c of cells) {
+      if (c.risk < 0.12) continue
+      const half = (c.cell_deg || 0.25) / 2
+      const r = L.rectangle([[c.lat - half, c.lon - half], [c.lat + half, c.lon + half]], {
+        stroke: false, fillColor: c.risk >= 0.6 ? '#ff3b3b' : c.risk >= 0.35 ? '#ff7a1a' : '#ffd23f',
+        fillOpacity: 0.08 + 0.34 * c.risk, interactive: true,
+      })
+      r.bindTooltip(
+        `<b>${Math.round(c.risk * 100)}% chance of an outbreak</b><br/>by ${horizonTo || 'next week'}<br/>` +
+        `${(c.drivers || []).slice(0, 2).join('<br/>')}`,
+        { direction: 'top', opacity: 0.92, className: 'ts-tip' })
+      group.addLayer(r)
+    }
+    group.addTo(map)
+    group.eachLayer((l) => l.bringToBack?.())
+    return () => { group.remove() }
+  }, [cells, horizonTo, map])
+  return null
+}
+
 function siteIcon(type) {
   const glyph = { refinery: '⛽', steel_plant: '🏭', power_plant: '⚡', gas_flare: '🔥', mine: '⛏', cement_plant: '🧱',
     brick_kiln: '🧱', chemical_plant: '⚗' }[type] || '🏭'
@@ -133,11 +160,12 @@ function Legend() {
       <div className="legend-row"><span className="legend-dot legend-ring" />FRP anomaly at persistent source</div>
       <div className="legend-row"><span className="legend-dot legend-dash" />Persistent source (≥8 active days)</div>
       <div className="legend-row"><span className="legend-dot" style={{ background: SITE_COLOR }} />OSM industrial site</div>
+      <div className="legend-row"><span className="legend-dot legend-risk" />Forecast outbreak risk, next 7 days</div>
     </div>
   )
 }
 
-const MapView = forwardRef(function MapView({ hotspots, sources, sites, selected, onSelect, flyTo }, ref) {
+const MapView = forwardRef(function MapView({ hotspots, sources, sites, riskCells, riskHorizon, selected, onSelect, flyTo }, ref) {
   return (
     <MapContainer center={INDIA_CENTER} zoom={5} minZoom={4} preferCanvas className="map" zoomControl={false}>
       <LayersControl position="topright">
@@ -154,6 +182,7 @@ const MapView = forwardRef(function MapView({ hotspots, sources, sites, selected
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
         </LayersControl.BaseLayer>
       </LayersControl>
+      <RiskLayer cells={riskCells} horizonTo={riskHorizon} />
       <SourceLayer data={sources} selected={selected} onSelect={onSelect} />
       <HotspotLayer data={hotspots} selected={selected} onSelect={onSelect} />
       <SiteLayer data={sites} />

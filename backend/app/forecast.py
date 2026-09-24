@@ -270,7 +270,7 @@ def _importance(m, X: pd.DataFrame) -> list[dict]:
     return rows[:10]
 
 
-def _drivers(row: pd.Series) -> list[str]:
+def _source_drivers(row: pd.Series) -> list[str]:
     """Plain-language reasons, so a risk score is never just a number."""
     out = []
     if row.get("ratio_recent_base", 0) >= 1.6:
@@ -285,11 +285,27 @@ def _drivers(row: pd.Series) -> list[str]:
         out.append(f"unstable output (cv {row['cv_28']:.2f})")
     if row.get("active_days_7", 0) >= 6:
         out.append("burning on every pass this week")
-    if row.get("det_7", 0) >= 5 and row.get("neigh_det_7", 0) >= 20:
-        out.append("fires already spreading through neighbouring cells")
-    if row.get("burn_season", 0) and row.get("crop_frac_28", 0) >= 0.5:
+    if not out and row.get("active_days_28", 0) >= 12:
+        out.append(f"active {int(row['active_days_28'])} of the last 28 days at a steady "
+                   f"{row.get('frp_base_28', 0):.0f} MW")
+    return out or ["no precursor in the last week; risk carried by this site's longer history"]
+
+
+def _grid_drivers(row: pd.Series) -> list[str]:
+    out = []
+    if row.get("det_7", 0) >= 5:
+        out.append(f"{int(row['det_7'])} detections here in the last week")
+    if row.get("neigh_det_7", 0) >= 10:
+        out.append(f"{int(row['neigh_det_7'])} more in the surrounding cells")
+    if row.get("trend_det_14", 0) > 0.1:
+        out.append("activity climbing over the fortnight")
+    if row.get("burn_season", 0) and row.get("crop_frac_28", 0) >= 0.4:
         out.append("cropland in residue-burning season")
-    return out or ["steady recent behaviour; risk carried by this site's history"]
+    elif row.get("forest_frac_28", 0) >= 0.4:
+        out.append("forest and scrub in the dry season")
+    if not out and row.get("det_28", 0) > 0:
+        out.append(f"{int(row['det_28'])} detections in the last month, nothing recent")
+    return out or ["quiet cell next to active ones"]
 
 
 def run(h: pd.DataFrame, sources: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
@@ -308,7 +324,7 @@ def run(h: pd.DataFrame, sources: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
         last["lon"] = last["group_id"].map(static["lon"])
         last["label"] = last["group_id"].map(static["label"])
         last["site_name"] = last["group_id"].map(static["nearest_site_name"])
-        last["drivers"] = [_drivers(r) for _, r in last.iterrows()]
+        last["drivers"] = [_source_drivers(r) for _, r in last.iterrows()]
         last["horizon_to"] = str((last["origin"].max() + timedelta(days=HORIZON)).date())
         last["origin"] = last["origin"].dt.strftime("%Y-%m-%d")
         inc_risk = last.sort_values("risk", ascending=False).reset_index(drop=True)[
@@ -320,7 +336,7 @@ def run(h: pd.DataFrame, sources: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
     if out_model is not None and len(out_panel):
         last = out_panel[out_panel["origin"] == out_panel["origin"].max()].copy()
         last["risk"] = out_model.predict_proba(_matrix(last, OUTBREAK_NUMERIC))[:, 1].round(4)
-        last["drivers"] = [_drivers(r) for _, r in last.iterrows()]
+        last["drivers"] = [_grid_drivers(r) for _, r in last.iterrows()]
         last["horizon_to"] = str((last["origin"].max() + timedelta(days=HORIZON)).date())
         last["origin"] = last["origin"].dt.strftime("%Y-%m-%d")
         out_risk = last.sort_values("risk", ascending=False).reset_index(drop=True)[

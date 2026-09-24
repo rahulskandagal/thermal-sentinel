@@ -9,8 +9,9 @@ flare, mining or coal-seam fire, agricultural residue burning, wildfire, or othe
 **persistent thermal sources** over time; and it flags **FRP anomalies** at those sources — the
 signature of an industrial fire or explosion rather than routine operation. Everything is served as
 GeoJSON/CSV through a REST API and shown on an interactive GIS dashboard. It then reduces the whole
-archive to a **ranked alert feed** an operator can actually work through, and takes their verdict back
-as training data.
+archive to a **ranked alert feed** an operator can actually work through, forecasts **which sites and
+which areas are likely to burn in the next seven days**, and takes the analyst's verdict back as
+training data.
 
 **Live demo (no install): https://rahulskandagal.github.io/thermal-sentinel/**
 
@@ -120,6 +121,38 @@ are queued in the browser instead, ready to replay against a real backend.
 The dashboard also has a **time-travel** control: scrub or play the 90 days a day at a time and watch a
 plant burn every night while a crop fire flares once and is gone.
 
+## Forecasting the next seven days
+
+Everything above describes what already burned. Two more models ask what burns next.
+
+| Model | Question | Signal |
+|---|---|---|
+| **Incident risk** | will this persistent source spike far above its own baseline within 7 days? | plants run into upset conditions — unstable process heat, extra flaring — before something fails, so the recent rise against a long baseline is what carries the prediction |
+| **Outbreak risk** | will this ~28 km cell see a burst of new fires within 7 days? | recent local activity, what the neighbouring cells are doing, and where the calendar sits in the residue-burning season |
+
+Both are **strictly causal**: every feature for an origin day `d` is computed only from detections on
+or before `d`, and the label is what happened in `(d, d+7]`. The test set is always *later in time*
+than the training set, because a forecast scored on a random split is not a forecast.
+
+Rare events make accuracy meaningless, so the scores are reported against the base rate — AUC, PR-AUC,
+Brier, and the **lift** from ranking by risk instead of guessing. On the demo archive:
+
+| | AUC | base rate | precision in the top 10% | lift |
+|---|---|---|---|---|
+| Incident risk | 0.73 | 9.7% | 23.7% | **2.4×** |
+| Outbreak risk | 0.91 | 29.7% | 96.7% | **3.3×** |
+
+Every score comes with plain-language drivers ("running 4.3× its own baseline in the last week",
+"142 more detections in the surrounding cells"), and the area forecast is a map layer drawn *beneath*
+the detections, because a forecast must never be mistaken for an observation. `GET /api/forecast` and
+`GET /api/forecast/grid`.
+
+> **Stated assumption.** The demo archive simulates the upset period before an incident: a week of
+> elevated, erratic FRP leading up to it. Without some precursor the incident date would be random by
+> construction and no forecaster could honestly learn it. On live FIRMS data the same features are
+> computed from real observations, and the CI gate (AUC and lift over the base rate) is what says
+> whether the model still earns its place.
+
 ## API
 
 | Endpoint | Purpose |
@@ -132,6 +165,8 @@ plant burn every night while a crop fire flares once and is gone.
 | `GET /api/sites` | industrial infrastructure used as context |
 | `GET /api/stats`, `GET /api/model` | dashboard KPIs; full model evaluation (CV, spatial hold-out, ablation, calibration) |
 | `GET /api/alerts?kinds&min_severity` | ranked operational alert feed |
+| `GET /api/forecast` | 7-day incident risk per persistent source, with drivers and validation scores |
+| `GET /api/forecast/grid` | 7-day outbreak risk per ~28 km cell (GeoJSON) |
 | `POST /api/feedback` / `GET /api/feedback` | analyst confirms or corrects a class |
 | `POST /api/retrain` | refit with analyst corrections applied over the archive labels |
 | `GET /api/export/hotspots.geojson`, `/api/export/sources.geojson` | GIS export (QGIS/ArcGIS) |
@@ -145,6 +180,7 @@ backend/app/osm.py        Overpass queries (around hotspot cells), tag → site 
 backend/app/features.py   DBSCAN clustering, persistence statistics, context features
 backend/app/classifier.py rule engine + calibrated gradient boosting, anomaly flag, evaluation
 backend/app/alerts.py     detections -> ranked operational alert feed
+backend/app/forecast.py   causal 7-day incident and outbreak risk, scored on a time split
 backend/app/pipeline.py   orchestration; persistent-source table, alerts, feedback-aware retrain
 backend/app/demo.py       physically-motivated demo archive generator (labelled)
 backend/app/db.py         SQLite storage & queries

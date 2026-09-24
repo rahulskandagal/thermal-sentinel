@@ -44,6 +44,10 @@ const liveApi = {
   source: (id) => get(`/api/sources/${id}`),
   sites: (p) => get('/api/sites', p),
   alerts: (p) => get('/api/alerts', p),
+  async forecast(p) {
+    const [f, g] = await Promise.all([get('/api/forecast', p), get('/api/forecast/grid', p)])
+    return { ...f, grid: g.features.map((x) => ({ ...x.properties, lon: x.geometry.coordinates[0], lat: x.geometry.coordinates[1] })) }
+  },
   feedback: () => get('/api/feedback'),
   sendFeedback: (body) => post('/api/feedback', body),
   retrain: () => post('/api/retrain'),
