@@ -54,10 +54,12 @@ export default function ForecastPanel({ forecast, onSelectSource, showRisk, setS
         trained only on days before the ones they are scored on.
       </p>
 
-      <label className="toggles">
-        <input type="checkbox" checked={showRisk} onChange={(e) => setShowRisk(e.target.checked)} />
-        Show the area risk layer on the map
-      </label>
+      <div className="toggles">
+        <label>
+          <input type="checkbox" checked={showRisk} onChange={(e) => setShowRisk(e.target.checked)} />
+          Area risk shaded on the map
+        </label>
+      </div>
 
       <label className="slider">
         Min risk <b>{Math.round(minRisk * 100)}%</b>

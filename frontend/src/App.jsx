@@ -37,7 +37,9 @@ export default function App() {
   const [alerts, setAlerts] = useState(null)
   const [model, setModel] = useState(null)
   const [forecast, setForecast] = useState(null)
-  const [showRisk, setShowRisk] = useState(false)
+  // The risk grid belongs to the Forecast tab: it appears with it and the checkbox hides it,
+  // rather than being a layer you have to go and find.
+  const [showRisk, setShowRisk] = useState(true)
   const mapRef = useRef(null)
   // Deep links: ?lat=22.35&lng=70.05&z=12&source=c12  (or &hotspot=h123)
   const urlInit = useRef(new URLSearchParams(window.location.search))
@@ -217,7 +219,7 @@ export default function App() {
           hotspots={filters.showHotspots ? hotspots : null}
           sources={filters.showSources ? sources : null}
           sites={filters.showSites ? sites : null}
-          riskCells={showRisk ? forecast?.grid : null}
+          riskCells={tab === 'forecast' && showRisk ? forecast?.grid : null}
           riskHorizon={forecast?.grid?.[0]?.horizon_to}
           selected={selected}
           onSelect={onSelect}

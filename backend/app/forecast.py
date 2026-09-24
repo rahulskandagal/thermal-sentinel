@@ -280,7 +280,8 @@ def _source_drivers(row: pd.Series) -> list[str]:
     if row.get("trend_frp_14", 0) > 0.05:
         out.append("FRP trending up over the last fortnight")
     if row.get("anom_days_28", 0) > 0:
-        out.append(f"{int(row['anom_days_28'])} anomaly days already in the last month")
+        n = int(row["anom_days_28"])
+        out.append(f"{n} anomaly day{'s' if n > 1 else ''} already in the last month")
     if row.get("cv_28", 0) >= 1.0:
         out.append(f"unstable output (cv {row['cv_28']:.2f})")
     if row.get("active_days_7", 0) >= 6:
